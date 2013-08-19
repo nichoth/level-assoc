@@ -120,6 +120,48 @@ output:
 {"type":"hackerspace","name":"sudoroom","hackers":[{"key":"maxogden","value":{"type":"hacker","name":"maxogden","hackerspace":"sudoroom"}},{"key":"mk30","value":{"type":"hacker","name":"mk30","hackerspace":"sudoroom"}},{"key":"substack","value":{"type":"hacker","name":"substack","hackerspace":"sudoroom"}},{"key":"wrought","value":{"type":"hacker","name":"wrought","hackerspace":"sudoroom"}},{"key":"yardena","value":{"type":"hacker","name":"yardena","hackerspace":"sudoroom"}}],"tools":[{"key":"8d9a83","value":{"type":"tool","name":"3d printer","hackerspace":"sudoroom"}},{"key":"ea7e66","value":{"type":"tool","name":"piano","hackerspace":"sudoroom"}}]}
 ```
 
+## list
+
+You can also pull down a list of all hackerspaces as a stream by calling
+`assoc.list('hackerspaces')`:
+
+``` js
+var sub = require('level-sublevel');
+var level = require('level-test')();
+var db = sub(level('test', { valueEncoding: 'json' }));
+
+var assoc = require('level-assoc')(db);
+assoc.add('hackerspace')
+    .hasMany('hackers', [ 'type', 'hacker' ])
+    .hasMany('tools', [ 'type', 'tool' ])
+;
+
+db.batch(require('./data.json').map(function (row) {
+    return { type: 'put', key: row.key, value: row.value };
+}), ready);
+
+function ready () {
+    assoc.list('hackerspace').on('data', console.log);
+}
+```
+
+output:
+
+``` js
+{ key: 'noisebridge',
+  value: 
+   { type: 'hackerspace',
+     name: 'noisebridge',
+     hackers: [Function],
+     tools: [Function] } }
+{ key: 'sudoroom',
+  value: 
+   { type: 'hackerspace',
+     name: 'sudoroom',
+     hackers: [Function],
+     tools: [Function] } }
+```
+
 # methods
 
 ``` js
@@ -142,6 +184,12 @@ return streams for the has-many collections.
 
 Return a stream with the expanded json representation of the row with all its
 children rows.
+
+## var stream = assoc.list(type, cb)
+
+Return an object `stream` with all the rows of `type`.
+
+`cb(err, rows)` will fire with the buffered array of results `rows` if provided.
 
 ## var t = assoc.add(name)
 
