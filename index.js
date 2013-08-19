@@ -6,7 +6,7 @@ module.exports = Assoc;
 function Assoc (db) {
     if (!(this instanceof Assoc)) return new Assoc(db);
     this.db = db;
-    this._sublevel = {};
+    this._sublevel = db.sublevel('associations');
     this._foreign = {};
     this._has = [];
     this._hasKeys = {};
@@ -14,7 +14,6 @@ function Assoc (db) {
 
 Assoc.prototype.add = function (key) {
     this._foreign[key] = foreignKey([ 'type', key ]);
-    this._sublevel[key] = this.db.sublevel('assoc-' + key);
     this._hasKeys[key] = {};
     
     var self = this;
@@ -27,11 +26,6 @@ Assoc.prototype.add = function (key) {
 
 Assoc.prototype._PUT = function (key, value) {
     if (!value) return;
-    if (this._foreign[value.type]) {
-        var fkey = this._foreign[value.type].keyList(key, value);
-        if (fkey) this._sublevel[value.type].put(fkey, 0);
-    }
-    
     for (var i = 0, li = this._has.length; i < li; i++) {
         var ts = this._has[i][0];
         var cur = value;
@@ -42,8 +36,11 @@ Assoc.prototype._PUT = function (key, value) {
         if (j !== lj || cur !== ts[j]) continue;
         
         var topKey = this._has[i][2];
-        var fkey = this._foreign[topKey].key(key, value);
-        if (fkey) this._sublevel[topKey].put(fkey, 0);
+        var fkey = this._foreign[topKey].keyList(key, value);
+        if (fkey) {
+            var k = bytewise.encode([topKey].concat(fkey)).toString('hex');
+            this._sublevel.put(k, 0);
+        }
     }
 };
 
@@ -54,14 +51,13 @@ Assoc.prototype.get = function (topKey, cb) {
         
         var keyTypes = self._hasKeys[row.type];
         var foreign = self._foreign[row.type];
-        var sub = self._sublevel[row.type];
         
         Object.keys(keyTypes).forEach(function (key) {
             var type = keyTypes[key];
             
             row[key] = function () {
-                var start = [ topKey, key ];
-                var end = [ topKey, key, undefined ];
+                var start = [ row.type, topKey, key ];
+                var end = [ row.type, topKey, key, undefined ];
                 
                 var opts = {
                     start: bytewise.encode(start).toString('hex'),
@@ -70,16 +66,16 @@ Assoc.prototype.get = function (topKey, cb) {
                 var tr = new Transform({ objectMode: true });
                 tr._transform = function (row, enc, next) {
                     var parts = bytewise.decode(Buffer(row.key, 'hex'));
-                    self.db.get(parts[2], function (err, value) {
+                    self.db.get(parts[3], function (err, value) {
                         if (err) return next(err);
-                        tr.push({ key: parts[0], value: value });
+                        tr.push({ key: parts[3], value: value });
                         next();
                     });
                 };
                 tr._flush = function (next) {
                     next();
                 };
-                return sub.createReadStream(opts).pipe(tr);
+                return self._sublevel.createReadStream(opts).pipe(tr);
             };
         });
         
