@@ -6,7 +6,8 @@
   "dependencies": {
     "bytewise": "~0.5.0",
     "readable-stream": "~1.0.15",
-    "foreign-key": "~0.1.0"
+    "foreign-key": "~0.1.0",
+    "concat-stream": "~1.0.1"
   },
   "devDependencies": {
     "tape": "~1.0.4",

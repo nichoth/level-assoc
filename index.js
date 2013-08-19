@@ -1,5 +1,6 @@
 var bytewise = require('bytewise');
 var Transform = require('readable-stream/transform');
+var Readable = require('readable-stream/readable');
 var foreignKey = require('foreign-key');
 
 module.exports = Assoc;
@@ -72,8 +73,12 @@ Assoc.prototype._postPut = function (key, value, cb) {
 
 Assoc.prototype.get = function (topKey, cb) {
     var self = this;
-    this.db.get(topKey, function (err, row) {
+    if (!cb) cb = function () {};
+    var row;
+    
+    this.db.get(topKey, function (err, row_) {
         if (err) return cb(err);
+        row = row_;
         
         var keyTypes = self._hasKeys[row.type];
         
@@ -87,6 +92,71 @@ Assoc.prototype.get = function (topKey, cb) {
         
         cb(null, row);
     });
+    
+    return { createStream: createStream };
+    
+    function createStream () {
+        var rs = new Readable;
+        var fkeys, stream, first = true, sfirst;
+        var busy = false;
+        
+        rs._read = function () {
+            if (!fkeys) return;
+            if (!stream && fkeys.length === 0) {
+                rs.push('}');
+                return rs.push(null);
+            }
+            
+            if (!stream) {
+                var key = fkeys.shift();
+                var skey = JSON.stringify(key);
+                rs.push((first ? skey : ',' + skey) + ':[');
+                first = false;
+                stream = row[key]();
+                stream.on('finish', function () {
+                    stream = null;
+                    rs.push(']');
+                });
+                sfirst = true;
+            }
+            
+            var x = stream.read();
+            if (x) ready()
+            else stream.once('readable', function () {
+                x = stream.read();
+                if (x) ready();
+            });
+            
+            function ready () {
+                var s = JSON.stringify(x);
+                rs.push(sfirst ? s : ',' + s);
+                sfirst = false;
+            }
+        };
+        
+        if (!row) {
+            var cb_ = cb;
+            cb = function (err, row_) {
+                if (err) rs.emit('error', err)
+                else begin()
+                cb_.apply(this, arguments);
+            };
+        }
+        else begin()
+        return rs;
+        
+        function begin () {
+            fkeys = [];
+            rs.push('{' + Object.keys(row).map(function (key) {
+                if (typeof row[key] === 'function') {
+                    fkeys.push(key);
+                    return false;
+                }
+                first = false;
+                return JSON.stringify(key) + ':' + JSON.stringify(row[key]);
+            }).filter(Boolean).join(','));
+        }
+    }
 };
 
 Assoc.prototype._rowStream = function (topType, topKey, key) {
