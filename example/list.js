@@ -13,9 +13,5 @@ db.batch(require('./data.json').map(function (row) {
 }), ready);
 
 function ready () {
-    assoc.list('hackerspace').on('data', function (space) {
-        space.value.hackers().on('data', function (h) {
-            console.log(space.key, h);
-        });
-    });
+    assoc.list('hackerspace').on('data', console.log);
 }

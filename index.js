@@ -88,7 +88,7 @@ Assoc.prototype.get = function (topKey, cb) {
     this.db.get(topKey, function (err, row_) {
         if (err) return cb(err);
         row = row_;
-        self._augment(row, topKey);
+        self._augment(topKey, row);
         cb(null, row);
     });
     
@@ -158,13 +158,15 @@ Assoc.prototype.get = function (topKey, cb) {
     }
 };
 
-Assoc.prototype._augment = function (row, topKey) {
+Assoc.prototype._augment = function (key, row) {
     var self = this;
     var keyTypes = this._hasKeys[row.type];
-    Object.keys(keyTypes).forEach(function (key) {
-        var type = keyTypes[key];
-        row[key] = function () {
-            return self._rowStream(row.type, topKey, key);
+    if (!keyTypes) return;
+    
+    Object.keys(keyTypes).forEach(function (k) {
+        var type = keyTypes[k];
+        row[k] = function () {
+            return self._rowStream(row.type, key, k);
         };
     });
 };
@@ -190,6 +192,8 @@ Assoc.prototype._rowStream = function (topType, topKey, key) {
                 return next();
             }
             else if (err) return next(err);
+            
+            self._augment(parts[4], value);
             tr.push({ key: parts[4], value: value });
             next();
         });
@@ -225,7 +229,7 @@ Assoc.prototype.list = function (type, params, cb) {
             }
             else if (err) return next(err);
             
-            if (params.augment !== false) self._augment(value, key[1]);
+            if (params.augment !== false) self._augment(key[1], value);
             
             tr.push({ key: key[1], value: value });
             next();
