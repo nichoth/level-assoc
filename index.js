@@ -7,31 +7,30 @@ module.exports = Assoc;
 function Assoc (db) {
     if (!(this instanceof Assoc)) return new Assoc(db);
     this.db = db;
-    this._sublevels = {};
+    this._sublevel = {};
     this._foreign = {};
     this._has = [];
     this._hasKeys = {};
 }
 
-Assoc.prototype.add = function (topType) {
-    if (typeof topType === 'string') topType = [ 'type', topType ];
-    var key = topType.join('\0');
-    
-    this._foreign[key] = foreignKey(topType);
-    this._sublevels[key] = this.db.sublevel('assoc-' + key);
+Assoc.prototype.add = function (key) {
+    this._foreign[key] = foreignKey([ 'type', key ]);
+    this._sublevel[key] = this.db.sublevel('assoc-' + key);
     this._hasKeys[key] = {};
     
     var self = this;
     return new Type(function (k, type) {
-        self._has.push([ type, k, topType ]);
+        self._has.push([ type, k, key ]);
         self._hasKeys[key][k] = type;
+        self._foreign[key].add(k, type, key);
     });
 };
 
 Assoc.prototype._PUT = function (key, value) {
     if (!value) return;
     if (this._foreign[value.type]) {
-        // ...
+        var fkey = this._foreign[value.type].keyList(key, value);
+        if (fkey) this._sublevel[value.type].put(fkey, 0);
     }
     
     for (var i = 0, li = this._has.length; i < li; i++) {
@@ -42,12 +41,11 @@ Assoc.prototype._PUT = function (key, value) {
             if (cur === undefined) break;
         }
         if (j !== lj || cur !== ts[j]) continue;
-        console.log(ts, value);
+        
+        var topKey = this._has[i][2];
+        var fkey = this._foreign[topKey].key(key, value);
+        if (fkey) this._sublevel[topKey].put(fkey, 0);
     }
-    
-    //this._sublevels[value.type].put(key, value);
-    //console.log('rkey=', [ key, value ]);
-    //this.db.put(key, value);
 };
 
 Assoc.prototype.get = function (topKey, cb) {
@@ -55,26 +53,30 @@ Assoc.prototype.get = function (topKey, cb) {
     this.db.get(topKey, function (err, row) {
         if (err) return cb(err);
         
-        return; // whatever
-        var t = self._hasKeys[row.type];
-        Object.keys(t._hasKeys).forEach(function (key) {
-            var type = t._hasKeys[key];
+        var keyTypes = self._hasKeys[row.type];
+        var foreign = self._foreign[row.type];
+        var sub = self._sublevel[row.type];
+        
+        Object.keys(keyTypes).forEach(function (key) {
+            var type = keyTypes[key];
             
             row[key] = function () {
+                var start = [ topKey, key ];
+                var end = [ topKey, key, undefined ];
+                
                 var opts = {
-                    /*
-                    start: bytewise.encode(),
-                    end: ''
-                    */
+                    start: bytewise.encode(start).toString('hex'),
+                    end: bytewise.encode(end).toString('hex')
                 };
                 var tr = new Transform({ objectMode: true });
                 tr._transform = function (row, enc, next) {
-                    // ...
+                    var parts = bytewise.decode(Buffer(row.key, 'hex'));
+                    console.log('PARTS=', parts);
                 };
                 tr._flush = function (next) {
                     next();
                 };
-                return self.db.createReadStream(opts).pipe(tr);
+                return sub.createReadStream(opts).pipe(tr);
             };
         });
         
