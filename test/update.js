@@ -89,14 +89,14 @@ test('updated', function (t) {
         room.hackers()
             .on('data', function (row) { hackers.push(row) })
             .on('end', function () {
-                t.deepEqual(hackers, sudoroomHackers);
+                t.deepEqual(scrub(hackers), sudoroomHackers);
             })
         ;
         var tools = [];
         room.tools()
             .on('data', function (row) { tools.push(row) })
             .on('end', function () {
-                t.deepEqual(tools, expectedTools);
+                t.deepEqual(scrub(tools), expectedTools);
             })
         ;
     });
@@ -106,7 +106,7 @@ test('updated', function (t) {
         room.hackers()
             .on('data', function (row) { hackers.push(row) })
             .on('end', function () {
-                t.deepEqual(hackers, noisebridgeHackers);
+                t.deepEqual(scrub(hackers), noisebridgeHackers);
             })
         ;
     });
@@ -116,8 +116,19 @@ test('updated', function (t) {
         tool.usage()
             .on('data', function (row) { usage.push(row) })
             .on('end', function () {
-                t.deepEqual(usage, expectedUsage);
+                t.deepEqual(scrub(usage), expectedUsage);
             })
         ;
     });
 });
+
+function scrub (rows) {
+    rows.forEach(function (ref) {
+        Object.keys(ref.value).forEach(function (key) {
+            if (typeof ref.value[key] === 'function') {
+                delete ref.value[key];
+            }
+        });
+    });
+    return rows;
+}

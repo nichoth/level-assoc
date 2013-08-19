@@ -91,14 +91,14 @@ test('deleted', function (t) {
         room.hackers()
             .on('data', function (row) { hackers.push(row) })
             .on('end', function () {
-                t.deepEqual(hackers, expectedHackers);
+                t.deepEqual(scrub(hackers), expectedHackers);
             })
         ;
         var tools = [];
         room.tools()
             .on('data', function (row) { tools.push(row) })
             .on('end', function () {
-                t.deepEqual(tools, expectedTools);
+                t.deepEqual(scrub(tools), expectedTools);
             })
         ;
     });
@@ -108,8 +108,19 @@ test('deleted', function (t) {
         tool.usage()
             .on('data', function (row) { usage.push(row) })
             .on('end', function () {
-                t.deepEqual(usage, expectedUsage);
+                t.deepEqual(scrub(usage), expectedUsage);
             })
         ;
     });
 });
+
+function scrub (rows) {
+    rows.forEach(function (ref) {
+        Object.keys(ref.value).forEach(function (key) {
+            if (typeof ref.value[key] === 'function') {
+                delete ref.value[key];
+            }
+        });
+    });
+    return rows;
+}

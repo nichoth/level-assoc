@@ -24,3 +24,14 @@ test('stringify', function (t) {
         t.deepEqual(JSON.parse(body), expected);
     }));
 });
+
+function scrub (rows) {
+    rows.forEach(function (ref) {
+        Object.keys(ref.value).forEach(function (key) {
+            if (typeof ref.value[key] === 'function') {
+                delete ref.value[key];
+            }
+        });
+    });
+    return rows;
+}
