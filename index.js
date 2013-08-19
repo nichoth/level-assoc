@@ -20,7 +20,8 @@ Assoc.prototype.get = function (name, cb) {
         var t = self._types[row.type];
         
         Object.keys(t._has).forEach(function (key) {
-            row[key] = 'PLACHEOLDER';
+            var type = t._has[key];
+            row[key] = new Collection(key, type);
         });
         
         cb(null, row);
@@ -46,4 +47,13 @@ Type.prototype.belongsTo = function (type, key) {
         + ' Specify a key.'
     );
     return this;
+};
+
+function Collection (key, type) {
+    this.key = key;
+    this.type = type;
+}
+
+Collection.prototype.inspect = function () {
+    return '<Collection[ ' + this.type.join(', ') + ' ]>';
 };
