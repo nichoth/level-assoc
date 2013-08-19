@@ -10,6 +10,19 @@ function Assoc (db) {
     this._foreign = {};
     this._has = [];
     this._hasKeys = {};
+    
+    var self = this;
+    db.hooks.post({ start: '', end: '~' }, function (change, add) {
+        if (change.type === 'put') {
+            var value = JSON.parse(change.value);
+            self._postPut(change.key, value, function (err) {
+                if (err) self.db.emit('error', err)
+            });
+        }
+        else if (change.type === 'del') {
+            // ...
+        }
+    });
 }
 
 Assoc.prototype.add = function (key) {
@@ -24,8 +37,11 @@ Assoc.prototype.add = function (key) {
     });
 };
 
-Assoc.prototype._PUT = function (key, value) {
-    if (!value) return;
+Assoc.prototype._postPut = function (key, value, cb) {
+    if (!value) return cb();
+    var pending = 0;
+    var self = this;
+    
     for (var i = 0, li = this._has.length; i < li; i++) {
         var ts = this._has[i][0];
         var cur = value;
@@ -39,9 +55,16 @@ Assoc.prototype._PUT = function (key, value) {
         var fkey = this._foreign[topKey].keyList(key, value);
         if (fkey) {
             var k = bytewise.encode([topKey].concat(fkey)).toString('hex');
-            this._sublevel.put(k, 0);
+            pending ++;
+            this._sublevel.put(k, 0, function (err) {
+                if (err) cb(err)
+                else if (--pending === 0) cb()
+                
+            });
         }
     }
+    
+    if (pending === 0) cb();
 };
 
 Assoc.prototype.get = function (topKey, cb) {
