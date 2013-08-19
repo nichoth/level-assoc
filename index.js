@@ -20,7 +20,7 @@ function Assoc (db) {
             });
         }
         else if (change.type === 'del') {
-            // ignore deletes; compaction happens when a stream is opened
+            // ignore deletes; compaction happens on stream key lookup errors
         }
     });
 }
@@ -73,41 +73,46 @@ Assoc.prototype.get = function (topKey, cb) {
         if (err) return cb(err);
         
         var keyTypes = self._hasKeys[row.type];
-        var foreign = self._foreign[row.type];
         
         Object.keys(keyTypes).forEach(function (key) {
             var type = keyTypes[key];
             
             row[key] = function () {
-                var start = [ row.type, topKey, key ];
-                var end = [ row.type, topKey, key, undefined ];
-                
-                var opts = {
-                    start: bytewise.encode(start).toString('hex'),
-                    end: bytewise.encode(end).toString('hex')
-                };
-                var tr = new Transform({ objectMode: true });
-                tr._transform = function (row, enc, next) {
-                    var parts = bytewise.decode(Buffer(row.key, 'hex'));
-                    self.db.get(parts[3], function (err, value) {
-                        if (err && err.name === 'NotFoundError') {
-                            self._sublevel.del(row.key);
-                            return next();
-                        }
-                        else if (err) return next(err);
-                        tr.push({ key: parts[3], value: value });
-                        next();
-                    });
-                };
-                tr._flush = function (next) {
-                    next();
-                };
-                return self._sublevel.createReadStream(opts).pipe(tr);
+                return self._collectStream(topKey, key, row);
             };
         });
         
         cb(null, row);
     });
+};
+
+Assoc.prototype._collectStream = function (topKey, key, row) {
+    var self = this;
+    var start = [ row.type, topKey, key ];
+    var end = [ row.type, topKey, key, undefined ];
+    
+    var opts = {
+        start: bytewise.encode(start).toString('hex'),
+        end: bytewise.encode(end).toString('hex')
+    };
+    var tr = new Transform({ objectMode: true });
+    tr._transform = function (row, enc, next) {
+        var parts = bytewise.decode(Buffer(row.key, 'hex'));
+        self.db.get(parts[3], function (err, value) {
+            if (err && err.name === 'NotFoundError') {
+                // lazily remove deleted indexes
+                self._sublevel.del(row.key);
+                return next();
+            }
+            else if (err) return next(err);
+            tr.push({ key: parts[3], value: value });
+            next();
+        });
+    };
+    tr._flush = function (next) {
+        next();
+    };
+    return self._sublevel.createReadStream(opts).pipe(tr);
 };
 
 function Type (cb) {
