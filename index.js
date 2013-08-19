@@ -165,8 +165,15 @@ Assoc.prototype._augment = function (key, row) {
     
     Object.keys(keyTypes).forEach(function (k) {
         var type = keyTypes[k];
-        row[k] = function () {
-            return self._rowStream(row.type, key, k);
+        row[k] = function (cb) {
+            var s = self._rowStream(row.type, key, k);
+            if (cb) {
+                var results = [];
+                s.on('error', cb);
+                s.on('data', function (r) { results.push(r) });
+                s.on('end', function () { cb(null, results) });
+            }
+            return s;
         };
     });
 };
