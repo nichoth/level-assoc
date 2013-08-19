@@ -1,0 +1,39 @@
+{
+  "name": "level-assoc",
+  "version": "0.0.0",
+  "description": "relational foreign key associations (hasMany, belongsTo) for leveldb",
+  "main": "index.js",
+  "dependencies": {
+    "bytewise": "~0.5.0",
+    "readable-stream": "~1.0.15",
+    "foreign-key": "~0.1.0"
+  },
+  "devDependencies": {
+    "tape": "~1.0.4",
+    "level-sublevel": "~5.0.1",
+    "level-test": "~1.5.1"
+  },
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/substack/level-assoc.git"
+  },
+  "homepage": "https://github.com/substack/level-assoc",
+  "keywords": [
+    "has_many",
+    "belongs_to",
+    "active",
+    "record",
+    "relational",
+    "sql",
+    "database"
+  ],
+  "author": {
+    "name": "James Halliday",
+    "email": "mail@substack.net",
+    "url": "http://substack.net"
+  },
+  "license": "MIT"
+}

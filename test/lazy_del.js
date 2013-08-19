@@ -1,7 +1,7 @@
 var test = require('tape');
 var sub = require('level-sublevel');
 var level = require('level-test')();
-var db = sub(level('test', { valueEncoding: 'json' }));
+var db = sub(level('del-test', { valueEncoding: 'json' }));
 
 var assoc = require('../')(db);
 assoc.add('hackerspace')
