@@ -12,8 +12,10 @@ assoc.add('tool').belongsTo('hackerspace');
 
 db.batch(require('./data.json').map(function (row) {
     return { type: 'put', key: row.key, value: row.value };
-}));
+}), ready);
 
-assoc.get('sudoroom', function (err, room) {
-    console.log(room);
-});
+function ready () {
+    assoc.get('sudoroom', function (err, room) {
+        console.log(room);
+    });
+}
