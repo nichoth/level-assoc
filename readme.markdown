@@ -90,6 +90,36 @@ HACKER { type: 'hacker', name: 'wrought', hackerspace: 'sudoroom' }
 HACKER { type: 'hacker', name: 'yardena', hackerspace: 'sudoroom' }
 ```
 
+## stringify
+
+Using the same dataset, we can stream stringify the nested records for sudoroom:
+
+``` js
+var sub = require('level-sublevel');
+var level = require('level-test')();
+var db = sub(level('test', { valueEncoding: 'json' }));
+
+var assoc = require('level-assoc')(db);
+assoc.add('hackerspace')
+    .hasMany('hackers', [ 'type', 'hacker' ])
+    .hasMany('tools', [ 'type', 'tool' ])
+;
+
+db.batch(require('./data.json').map(function (row) {
+    return { type: 'put', key: row.key, value: row.value };
+}), ready);
+
+function ready () {
+    assoc.get('sudoroom').createStream().pipe(process.stdout);
+}
+```
+
+output:
+
+```
+{"type":"hackerspace","name":"sudoroom","hackers":[{"key":"maxogden","value":{"type":"hacker","name":"maxogden","hackerspace":"sudoroom"}},{"key":"mk30","value":{"type":"hacker","name":"mk30","hackerspace":"sudoroom"}},{"key":"substack","value":{"type":"hacker","name":"substack","hackerspace":"sudoroom"}},{"key":"wrought","value":{"type":"hacker","name":"wrought","hackerspace":"sudoroom"}},{"key":"yardena","value":{"type":"hacker","name":"yardena","hackerspace":"sudoroom"}}],"tools":[{"key":"8d9a83","value":{"type":"tool","name":"3d printer","hackerspace":"sudoroom"}},{"key":"ea7e66","value":{"type":"tool","name":"piano","hackerspace":"sudoroom"}}]}
+```
+
 # methods
 
 ``` js
@@ -102,11 +132,16 @@ Create a new `assoc` instance from a
 [sublevel-enabled](https://npmjs.org/package/level-sublevel)
 leveldb instance `db`.
 
-## assoc.get(key, cb)
+## var rec = assoc.get(key, cb)
 
 Fetch a `key` from the database with `cb(err, row)`.
 `row` contains the underlying `db.get()` result but augmented with functions to
 return streams for the has-many collections.
+
+## rec.createStream()
+
+Return a stream with the expanded json representation of the row with all its
+children rows.
 
 ## var t = assoc.add(name)
 
