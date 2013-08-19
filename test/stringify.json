@@ -1,0 +1,48 @@
+{
+  "type": "hackerspace",
+  "name": "sudoroom",
+  "hackers": [
+    {
+      "key": "maxogden",
+      "value": {
+        "type": "hacker",
+        "name": "maxogden",
+        "hackerspace": "sudoroom"
+      }
+    },
+    {
+      "key": "substack",
+      "value": {
+        "type": "hacker",
+        "name": "substack",
+        "hackerspace": "sudoroom"
+      }
+    },
+    {
+      "key": "wrought",
+      "value": {
+        "type": "hacker",
+        "name": "wrought",
+        "hackerspace": "sudoroom"
+      }
+    }
+  ],
+  "tools": [
+    {
+      "key": "8d9a83",
+      "value": {
+        "type": "tool",
+        "name": "3d printer",
+        "hackerspace": "sudoroom"
+      }
+    },
+    {
+      "key": "ea7e66",
+      "value": {
+        "type": "tool",
+        "name": "piano",
+        "hackerspace": "sudoroom"
+      }
+    }
+  ]
+}
