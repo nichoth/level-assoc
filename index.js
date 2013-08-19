@@ -12,7 +12,7 @@ function Assoc (db) {
     this._hasKeys = {};
     
     var self = this;
-    db.hooks.post({ start: '', end: '~' }, function (change, add) {
+    db.hooks.post({ start: '', end: '~' }, function (change) {
         if (change.type === 'put') {
             var value = JSON.parse(change.value);
             self._postPut(change.key, value, function (err) {
@@ -20,7 +20,7 @@ function Assoc (db) {
             });
         }
         else if (change.type === 'del') {
-            // ...
+            // ignore deletes; compaction happens when a stream is opened
         }
     });
 }
@@ -90,7 +90,11 @@ Assoc.prototype.get = function (topKey, cb) {
                 tr._transform = function (row, enc, next) {
                     var parts = bytewise.decode(Buffer(row.key, 'hex'));
                     self.db.get(parts[3], function (err, value) {
-                        if (err) return next(err);
+                        if (err && err.name === 'NotFoundError') {
+                            self._sublevel.del(row.key);
+                            return next();
+                        }
+                        else if (err) return next(err);
                         tr.push({ key: parts[3], value: value });
                         next();
                     });

@@ -17,9 +17,13 @@ db.batch(require('./data.json').map(function (row) {
     return { type: 'put', key: row.key, value: row.value };
 }));
 
-assoc.get('sudoroom', function (err, room) {
-    room.hackers().on('data', console.log);
-});
+setTimeout(function () {
+    assoc.get('sudoroom', function (err, room) {
+        room.hackers().on('data', console.log);
+    });
+}, 1000);
+
+db.del('substack');
 
 assoc.get('8d9a83', function (err, tool) {
     tool.usage().on('data', console.log);
