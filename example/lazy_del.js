@@ -15,7 +15,7 @@ assoc.add('tool')
 
 db.batch(require('./data.json').map(function (row) {
     return { type: 'put', key: row.key, value: row.value };
-}));
+}), ready);
 
 setTimeout(function () {
     assoc.get('sudoroom', function (err, room) {
@@ -23,8 +23,10 @@ setTimeout(function () {
     });
 }, 1000);
 
-db.del('substack');
-
-assoc.get('8d9a83', function (err, tool) {
-    tool.usage().on('data', console.log);
-});
+function ready () {
+    db.del('substack');
+    
+    assoc.get('8d9a83', function (err, tool) {
+        tool.usage().on('data', console.log);
+    });
+}

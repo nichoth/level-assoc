@@ -76,7 +76,7 @@ var expectedTools = [
 ];
 
 test('deleted', function (t) {
-    t.plan(3);
+    t.plan(6);
     
     assoc.get('sudoroom', function (err, room) {
         if (err) t.fail(err);

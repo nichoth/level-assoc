@@ -14,7 +14,10 @@ function Assoc (db) {
     var self = this;
     db.hooks.post({ start: '', end: '~' }, function (change) {
         if (change.type === 'put') {
-            var value = JSON.parse(change.value);
+            var value = typeof change.value === 'string'
+                ? JSON.parse(change.value)
+                : change.value
+            ;
             self._postPut(change.key, value, function (err) {
                 if (err) self.db.emit('error', err)
             });
@@ -78,7 +81,7 @@ Assoc.prototype.get = function (topKey, cb) {
             var type = keyTypes[key];
             
             row[key] = function () {
-                return self._collectStream(topKey, key, row);
+                return self._rowStream(topKey, key, row);
             };
         });
         
@@ -86,7 +89,7 @@ Assoc.prototype.get = function (topKey, cb) {
     });
 };
 
-Assoc.prototype._collectStream = function (topKey, key, row) {
+Assoc.prototype._rowStream = function (topKey, key, row) {
     var self = this;
     var start = [ row.type, topKey, key ];
     var end = [ row.type, topKey, key, undefined ];

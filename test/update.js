@@ -17,23 +17,26 @@ assoc.add('tool')
 test('setup', function (t) {
     db.batch(require('./data.json').map(function (row) {
         return { type: 'put', key: row.key, value: row.value };
-    }), function () { t.end() });
+    }), ready);
+    
+    function ready () {
+        setTimeout(function () {
+            db.put('substack', {
+                "type": "hacker",
+                "name": "substack",
+                "hackerspace": "noisebridge"
+            });
+        }, 100);
+        setTimeout(function () { t.end() }, 200);
+    }
 });
 
-var expectedHackers = [
+var sudoroomHackers = [
     {
         key: "maxogden",
         value: {
             type: 'hacker',
             name: 'maxogden',
-            hackerspace: 'sudoroom'
-        }
-    },
-    {
-        key: 'substack',
-        value: {
-            type: 'hacker',
-            name: 'substack',
             hackerspace: 'sudoroom'
         }
     },
@@ -78,7 +81,7 @@ var expectedTools = [
     }
 ];
 
-test('refs', function (t) {
+test('deleted', function (t) {
     t.plan(6);
     
     assoc.get('sudoroom', function (err, room) {
@@ -94,7 +97,7 @@ test('refs', function (t) {
         room.hackers()
             .on('data', function (row) { hackers.push(row) })
             .on('end', function () {
-                t.deepEqual(hackers, expectedHackers);
+                t.deepEqual(hackers, sudoroomHackers);
             })
         ;
         var tools = [];
