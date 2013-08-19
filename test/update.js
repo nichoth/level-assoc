@@ -32,22 +32,14 @@ test('setup', function (t) {
 });
 
 var sudoroomHackers = [
-    {
-        key: "maxogden",
-        value: {
-            type: 'hacker',
-            name: 'maxogden',
-            hackerspace: 'sudoroom'
-        }
-    },
-    {
-        key: 'wrought',
-        value: {
-            type: 'hacker',
-            name: 'wrought',
-            hackerspace: 'sudoroom'
-        }
-    }
+    {key:"maxogden",value:{type:'hacker',name:'maxogden',hackerspace:'sudoroom'}},
+    {key:'wrought',value:{type:'hacker',name:'wrought',hackerspace:'sudoroom'}}
+];
+
+var noisebridgeHackers = [
+  {key:"ioerror",value:{type:"hacker",name:"ioerror",hackerspace:"noisebridge"}},
+  {key:"mitch",value:{type:"hacker",name:"mitch",hackerspace:"noisebridge"}},
+  {key:"substack",value:{type:"hacker",name:"substack",hackerspace:"noisebridge"}}
 ];
 
 var expectedUsage = [
@@ -81,8 +73,8 @@ var expectedTools = [
     }
 ];
 
-test('deleted', function (t) {
-    t.plan(6);
+test('updated', function (t) {
+    t.plan(7);
     
     assoc.get('sudoroom', function (err, room) {
         if (err) t.fail(err);
@@ -105,6 +97,16 @@ test('deleted', function (t) {
             .on('data', function (row) { tools.push(row) })
             .on('end', function () {
                 t.deepEqual(tools, expectedTools);
+            })
+        ;
+    });
+    
+    assoc.get('noisebridge', function (err, room) {
+        var hackers = [];
+        room.hackers()
+            .on('data', function (row) { hackers.push(row) })
+            .on('end', function () {
+                t.deepEqual(hackers, noisebridgeHackers);
             })
         ;
     });
