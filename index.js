@@ -43,8 +43,15 @@ Assoc.prototype.add = function (key) {
 
 Assoc.prototype._postPut = function (key, value, cb) {
     if (!value) return cb();
-    var pending = 0;
     var self = this;
+    
+    var pending = 1;
+    
+    var k = bytewise.encode([ value.type, key ]).toString('hex');
+    this._sublevel.put(k, 0, function (err) {
+        if (err) cb(err)
+        else if (--pending === 0) cb()
+    });
     
     for (var i = 0, li = this._has.length; i < li; i++) {
         var ts = this._has[i][0];
@@ -56,16 +63,18 @@ Assoc.prototype._postPut = function (key, value, cb) {
         if (j !== lj || cur !== ts[j]) continue;
         
         var topKey = this._has[i][2];
-        var fkey = this._foreign[topKey].keyList(key, value);
-        if (fkey) {
-            var k = bytewise.encode([topKey].concat(fkey)).toString('hex');
-            pending ++;
-            this._sublevel.put(k, 0, function (err) {
-                if (err) cb(err)
-                else if (--pending === 0) cb()
-                
-            });
-        }
+        var fkey = [ null, topKey ]
+            .concat(this._foreign[topKey].keyList(key, value))
+        ;
+        
+        pending ++;
+        
+        var k = bytewise.encode(fkey).toString('hex');
+        this._sublevel.put(k, 0, function (err) {
+            if (err) cb(err)
+            else if (--pending === 0) cb()
+            
+        });
     }
     
     if (pending === 0) cb();
@@ -79,17 +88,7 @@ Assoc.prototype.get = function (topKey, cb) {
     this.db.get(topKey, function (err, row_) {
         if (err) return cb(err);
         row = row_;
-        
-        var keyTypes = self._hasKeys[row.type];
-        
-        Object.keys(keyTypes).forEach(function (key) {
-            var type = keyTypes[key];
-            
-            row[key] = function () {
-                return self._rowStream(row.type, topKey, key);
-            };
-        });
-        
+        self._augment(row, topKey);
         cb(null, row);
     });
     
@@ -159,10 +158,21 @@ Assoc.prototype.get = function (topKey, cb) {
     }
 };
 
+Assoc.prototype._augment = function (row, topKey) {
+    var self = this;
+    var keyTypes = this._hasKeys[row.type];
+    Object.keys(keyTypes).forEach(function (key) {
+        var type = keyTypes[key];
+        row[key] = function () {
+            return self._rowStream(row.type, topKey, key);
+        };
+    });
+};
+
 Assoc.prototype._rowStream = function (topType, topKey, key) {
     var self = this;
-    var start = [ topType, topKey, key ];
-    var end = [ topType, topKey, key, undefined ];
+    var start = [ null, topType, topKey, key ];
+    var end = [ null, topType, topKey, key, undefined ];
     
     var opts = {
         start: bytewise.encode(start).toString('hex'),
@@ -171,7 +181,7 @@ Assoc.prototype._rowStream = function (topType, topKey, key) {
     var tr = new Transform({ objectMode: true });
     tr._transform = function (row, enc, next) {
         var parts = bytewise.decode(Buffer(row.key, 'hex'));
-        self.db.get(parts[3], function (err, value) {
+        self.db.get(parts[4], function (err, value) {
             
             if ((err && err.name === 'NotFoundError')
             || (value && value[topType] !== topKey)) {
@@ -180,7 +190,7 @@ Assoc.prototype._rowStream = function (topType, topKey, key) {
                 return next();
             }
             else if (err) return next(err);
-            tr.push({ key: parts[3], value: value });
+            tr.push({ key: parts[4], value: value });
             next();
         });
     };
@@ -188,6 +198,48 @@ Assoc.prototype._rowStream = function (topType, topKey, key) {
         next();
     };
     return self._sublevel.createReadStream(opts).pipe(tr);
+};
+
+Assoc.prototype.list = function (type, params, cb) {
+    var self = this;
+    if (typeof params === 'function') {
+        cb = params;
+        params = {};
+    }
+    if (!params) params = {};
+    
+    var opts = {
+        start: bytewise.encode([ type, null ]).toString('hex'),
+        end: bytewise.encode([ type, undefined ]).toString('hex')
+    };
+    var tr = new Transform({ objectMode: true });
+    
+    tr._transform = function (row, enc, next) {
+        var key = bytewise.decode(Buffer(row.key, 'hex'));
+        
+        self.db.get(key[1], function (err, value) {
+            if ((err && err.name === 'NotFoundError')
+            || (value && value.type !== type)) {
+                self._sublevel.del(row.key);
+                return next();
+            }
+            else if (err) return next(err);
+            
+            if (params.augment !== false) self._augment(value, key[1]);
+            
+            tr.push({ key: key[1], value: value });
+            next();
+        });
+    };
+    
+    if (cb) {
+        var results = [];
+        tr.on('error', cb);
+        tr.on('data', function (row) { results.push(row) });
+        tr.on('end', function () { cb(null, results) });
+    }
+    
+    return this._sublevel.createReadStream(opts).pipe(tr);
 };
 
 function Type (cb) {
