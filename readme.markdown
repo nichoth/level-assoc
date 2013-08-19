@@ -5,6 +5,8 @@ foreign key
 (hasMany, belongsTo, ...)
 for [leveldb](https://github.com/rvagg/node-levelup)
 
+[![build status](https://secure.travis-ci.org/substack/level-assoc.png)](http://travis-ci.org/substack/level-assoc)
+
 # example
 
 ``` js
