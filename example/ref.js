@@ -19,10 +19,14 @@ db.batch(require('./data.json').map(function (row) {
 
 function ready () {
     assoc.get('sudoroom', function (err, room) {
-        room.hackers().on('data', console.log);
+        room.hackers().on('data', function (r) {
+            console.log('HACKER', r.value)
+        });
     });
 
     assoc.get('8d9a83', function (err, tool) {
-        tool.usage().on('data', console.log);
+        tool.usage().on('data', function (r) {
+            console.log('USAGE', r.value)
+        });
     });
 }
