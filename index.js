@@ -1,4 +1,3 @@
-var pathway = require('pathway');
 var bytewise = require('bytewise');
 var Transform = require('readable-stream/transform');
 var foreignKey = require('foreign-key');
@@ -71,7 +70,11 @@ Assoc.prototype.get = function (topKey, cb) {
                 var tr = new Transform({ objectMode: true });
                 tr._transform = function (row, enc, next) {
                     var parts = bytewise.decode(Buffer(row.key, 'hex'));
-                    console.log('PARTS=', parts);
+                    self.db.get(parts[2], function (err, value) {
+                        if (err) return next(err);
+                        tr.push({ key: parts[0], value: value });
+                        next();
+                    });
                 };
                 tr._flush = function (next) {
                     next();
