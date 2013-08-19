@@ -81,7 +81,7 @@ Assoc.prototype.get = function (topKey, cb) {
             var type = keyTypes[key];
             
             row[key] = function () {
-                return self._rowStream(topKey, key, row);
+                return self._rowStream(row.type, topKey, key);
             };
         });
         
@@ -89,10 +89,10 @@ Assoc.prototype.get = function (topKey, cb) {
     });
 };
 
-Assoc.prototype._rowStream = function (topKey, key, row) {
+Assoc.prototype._rowStream = function (topType, topKey, key) {
     var self = this;
-    var start = [ row.type, topKey, key ];
-    var end = [ row.type, topKey, key, undefined ];
+    var start = [ topType, topKey, key ];
+    var end = [ topType, topKey, key, undefined ];
     
     var opts = {
         start: bytewise.encode(start).toString('hex'),
@@ -102,8 +102,10 @@ Assoc.prototype._rowStream = function (topKey, key, row) {
     tr._transform = function (row, enc, next) {
         var parts = bytewise.decode(Buffer(row.key, 'hex'));
         self.db.get(parts[3], function (err, value) {
-            if (err && err.name === 'NotFoundError') {
-                // lazily remove deleted indexes
+            
+            if ((err && err.name === 'NotFoundError')
+            || (value && value[topType] !== topKey)) {
+                // lazily remove deleted or stale indexes
                 self._sublevel.del(row.key);
                 return next();
             }
