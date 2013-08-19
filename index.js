@@ -6,7 +6,7 @@ module.exports = Assoc;
 function Assoc (db) {
     if (!(this instanceof Assoc)) return new Assoc(db);
     this.db = db;
-    this._sublevel = db.sublevel('associations');
+    this._sublevel = db.sublevel('assoc');
     this._foreign = {};
     this._has = [];
     this._hasKeys = {};
