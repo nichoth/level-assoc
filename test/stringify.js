@@ -4,7 +4,10 @@ var concat = require('concat-stream');
 var sub = require('level-sublevel');
 var level = require('level-test')();
 var db = sub(level('test', { valueEncoding: 'json' }));
-var expected = require('./stringify.json');
+var expected = {
+    get: require('./stringify/get.json'),
+    list: require('./stringify/list.json')
+};
 
 var assoc = require('../')(db);
 assoc.add('hackerspace')
@@ -21,7 +24,14 @@ test('setup', function (t) {
 test('stringify', function (t) {
     t.plan(1);
     assoc.get('sudoroom').createStream().pipe(concat(function (body) {
-        t.deepEqual(JSON.parse(body), expected);
+        t.deepEqual(JSON.parse(body), expected.get);
+    }));
+});
+
+test('list stringify', function (t) {
+    t.plan(1);
+    assoc.list('hackerspace').createStream().pipe(concat(function (body) {
+        t.deepEqual(JSON.parse(body), expected.list);
     }));
 });
 
