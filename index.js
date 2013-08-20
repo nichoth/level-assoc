@@ -103,12 +103,10 @@ Assoc.prototype.get = function (topKey, cb) {
     };
 };
 
-function createRowStream () {
+function createRowStream (row, isKV) {
     var rs = new Readable;
     var fkeys, stream, first = true, sfirst;
-    var busy = false;
     
-    var row;
     rs._setRow = function (r) {
         row = r;
         begin();
@@ -116,17 +114,14 @@ function createRowStream () {
     
     rs._read = function () {
         if (!fkeys) return;
-        if (!stream && fkeys.length === 0) {
-            rs.push('}');
-            return rs.push(null);
-        }
+        if (!stream && fkeys.length === 0) return finish();
         
         if (!stream) {
             var key = fkeys.shift();
             var skey = JSON.stringify(key);
             rs.push((first ? skey : ',' + skey) + ':[');
             first = false;
-            stream = row[key]();
+            stream = (isKV ? row.value : row)[key]();
             stream.on('finish', function () {
                 stream = null;
                 rs.push(']');
@@ -146,21 +141,29 @@ function createRowStream () {
             rs.push(sfirst ? s : ',' + s);
             sfirst = false;
         }
+        
+        function finish () {
+            rs.push(isKV ? '}}' : '}');
+            return rs.push(null);
+        }
     };
     
     if (row) begin();
     return rs;
     
     function begin () {
-        fkeys = [];
-        rs.push('{' + Object.keys(row).map(function (key) {
-            if (typeof row[key] === 'function') {
-                fkeys.push(key);
-                return false;
-            }
+        var value = isKV ? row.value : row;
+        fkeys = Object.keys(value).filter(function (key) {
+            return typeof value[key] === 'function';
+        });
+        var s = '{' + Object.keys(value).map(function (key) {
+            if (typeof value[key] === 'function') return false;
             first = false;
-            return JSON.stringify(key) + ':' + JSON.stringify(row[key]);
-        }).filter(Boolean).join(','));
+            return JSON.stringify(key) + ':' + JSON.stringify(value[key]);
+        }).filter(Boolean).join(',');
+        
+        if (isKV) s = '{"key":' + JSON.stringify(row.key) + ',"value":' + s;
+        rs.push(s);
     }
 }
 
@@ -250,17 +253,29 @@ Assoc.prototype.list = function (type, params, cb) {
     };
     
     tr.createStream = function () {
-        var jtf = new Transform({ objectMode: true });
-        jtf.push('[');
-        jtf._transform = function (row, enc, next) {
-            createStream(row)
+        var stream = new Transform({ objectMode: true });
+        var first = true;
+        
+        stream._transform = function (row, enc, next) {
+            var rs = createRowStream(row, true);
+            if (!first) stream.push(',');
+            first = false;
+            
+            rs.on('readable', function () {
+                var buf = rs.read();
+                if (buf === null) next()
+                else stream.push(buf)
+            });
         };
-        jtf._flush = function (next) {
-            jtf.push(']');
-            jtf.push(null);
+        stream._flush = function (next) {
+            stream.push(']');
+            stream.push(null);
             next();
         };
-        return jtf;
+        
+        stream.push('[');
+        tr.pipe(stream);
+        return stream;
     };
     
     if (cb) {

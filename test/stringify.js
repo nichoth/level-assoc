@@ -28,14 +28,12 @@ test('stringify', function (t) {
     }));
 });
 
-/*
 test('list stringify', function (t) {
     t.plan(1);
     assoc.list('hackerspace').createStream().pipe(concat(function (body) {
         t.deepEqual(JSON.parse(body), expected.list);
     }));
 });
-*/
 
 function scrub (rows) {
     rows.forEach(function (ref) {
