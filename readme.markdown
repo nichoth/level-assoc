@@ -184,16 +184,16 @@ For each augmented `relation` function, `row[relation](cb)` will return a stream
 with the list of the related rows. Optionally pass in `cb(err, rows)` to buffer
 the list of `rows`.
 
-## rec.createStream()
+## var rec = assoc.list(type, cb)
 
-Return a stream with the expanded json representation of the row with all its
-children rows.
-
-## var stream = assoc.list(type, cb)
-
-Return an object `stream` with all the rows of `type`.
+Return an object stream `rec` with all the rows of `type`.
 
 `cb(err, rows)` will fire with the buffered array of results `rows` if provided.
+
+## rec.createStream()
+
+Return a stream with the expanded json representation of the row or rows from
+`assoc.get()` or `assoc.list()` with children rows expanded.
 
 ## var t = assoc.add(name)
 
