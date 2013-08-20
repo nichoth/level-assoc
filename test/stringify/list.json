@@ -1,5 +1,48 @@
 [
   {
+    "key": "noisebridge",
+    "value": {
+      "type": "hackerspace",
+      "name": "noisebridge",
+      "hackers": [
+        {
+          "key": "ioerror",
+          "value": {
+            "type": "hacker",
+            "name": "ioerror",
+            "hackerspace": "noisebridge"
+          }
+        },
+        {
+          "key": "mitch",
+          "value": {
+            "type": "hacker",
+            "name": "mitch",
+            "hackerspace": "noisebridge"
+          }
+        }
+      ],
+      "tools": [
+        {
+          "key": "025452",
+          "value": {
+            "type": "tool",
+            "name": "laser cutter",
+            "hackerspace": "noisebridge"
+          }
+        },
+        {
+          "key": "5cc709",
+          "value": {
+            "type": "tool",
+            "name": "3d printer",
+            "hackerspace": "noisebridge"
+          }
+        }
+      ]
+    }
+  },
+  {
     "key": "sudoroom",
     "value": {
       "type": "hackerspace",
@@ -45,49 +88,6 @@
             "type": "tool",
             "name": "piano",
             "hackerspace": "sudoroom"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "key": "noisebridge",
-    "value": {
-      "type": "hackerspace",
-      "name": "noisebridge",
-      "hackers": [
-        {
-          "key": "ioerror",
-          "value": {
-            "type": "hacker",
-            "name": "ioerror",
-            "hackerspace": "noisebridge"
-          }
-        },
-        {
-          "key": "mitch",
-          "value": {
-            "type": "hacker",
-            "name": "mitch",
-            "hackerspace": "noisebridge"
-          }
-        }
-      ],
-      "tools": [
-        {
-          "key": "025452",
-          "value": {
-            "type": "tool",
-            "name": "laser cutter",
-            "hackerspace": "noisebridge"
-          }
-        },
-        {
-          "key": "5cc709",
-          "value": {
-            "type": "tool",
-            "name": "3d printer",
-            "hackerspace": "noisebridge"
           }
         }
       ]
