@@ -83,80 +83,86 @@ Assoc.prototype._postPut = function (key, value, cb) {
 Assoc.prototype.get = function (topKey, cb) {
     var self = this;
     if (!cb) cb = function () {};
-    var row;
+    var stream, row;
     
-    this.db.get(topKey, function (err, row_) {
-        if (err) return cb(err);
-        row = row_;
+    this.db.get(topKey, function (err, r) {
+        if (stream && err) stream.emit('error', err)
+        if (err) return cb && cb(err);
+        row = r;
         self._augment(topKey, row);
+        if (stream) stream._setRow(row);
         cb(null, row);
     });
     
-    return { createStream: createStream };
-    
-    function createStream () {
-        var rs = new Readable;
-        var fkeys, stream, first = true, sfirst;
-        var busy = false;
-        
-        rs._read = function () {
-            if (!fkeys) return;
-            if (!stream && fkeys.length === 0) {
-                rs.push('}');
-                return rs.push(null);
-            }
-            
-            if (!stream) {
-                var key = fkeys.shift();
-                var skey = JSON.stringify(key);
-                rs.push((first ? skey : ',' + skey) + ':[');
-                first = false;
-                stream = row[key]();
-                stream.on('finish', function () {
-                    stream = null;
-                    rs.push(']');
-                });
-                sfirst = true;
-            }
-            
-            var x = stream.read();
-            if (x) ready()
-            else stream.once('readable', function () {
-                x = stream.read();
-                if (x) ready();
-            });
-            
-            function ready () {
-                var s = JSON.stringify(x);
-                rs.push(sfirst ? s : ',' + s);
-                sfirst = false;
-            }
-        };
-        
-        if (!row) {
-            var cb_ = cb;
-            cb = function (err, row_) {
-                if (err) rs.emit('error', err)
-                else begin()
-                cb_.apply(this, arguments);
-            };
+    return {
+        createStream: function () {
+            stream = createRowStream();
+            if (row) stream._setRow(row);
+            return stream;
         }
-        else begin()
-        return rs;
-        
-        function begin () {
-            fkeys = [];
-            rs.push('{' + Object.keys(row).map(function (key) {
-                if (typeof row[key] === 'function') {
-                    fkeys.push(key);
-                    return false;
-                }
-                first = false;
-                return JSON.stringify(key) + ':' + JSON.stringify(row[key]);
-            }).filter(Boolean).join(','));
-        }
-    }
+    };
 };
+
+function createRowStream () {
+    var rs = new Readable;
+    var fkeys, stream, first = true, sfirst;
+    var busy = false;
+    
+    var row;
+    rs._setRow = function (r) {
+        row = r;
+        begin();
+    };
+    
+    rs._read = function () {
+        if (!fkeys) return;
+        if (!stream && fkeys.length === 0) {
+            rs.push('}');
+            return rs.push(null);
+        }
+        
+        if (!stream) {
+            var key = fkeys.shift();
+            var skey = JSON.stringify(key);
+            rs.push((first ? skey : ',' + skey) + ':[');
+            first = false;
+            stream = row[key]();
+            stream.on('finish', function () {
+                stream = null;
+                rs.push(']');
+            });
+            sfirst = true;
+        }
+        
+        var x = stream.read();
+        if (x) ready()
+        else stream.once('readable', function () {
+            x = stream.read();
+            if (x) ready();
+        });
+        
+        function ready () {
+            var s = JSON.stringify(x);
+            rs.push(sfirst ? s : ',' + s);
+            sfirst = false;
+        }
+    };
+    
+    if (row) begin();
+    return rs;
+    
+    function begin () {
+        fkeys = [];
+        rs.push('{' + Object.keys(row).map(function (key) {
+            if (typeof row[key] === 'function') {
+                fkeys.push(key);
+                return false;
+            }
+            first = false;
+            return JSON.stringify(key) + ':' + JSON.stringify(row[key]);
+        }).filter(Boolean).join(','));
+    }
+}
 
 Assoc.prototype._augment = function (key, row) {
     var self = this;
@@ -241,6 +247,20 @@ Assoc.prototype.list = function (type, params, cb) {
             tr.push({ key: key[1], value: value });
             next();
         });
+    };
+    
+    tr.createStream = function () {
+        var jtf = new Transform({ objectMode: true });
+        jtf.push('[');
+        jtf._transform = function (row, enc, next) {
+            createStream(row)
+        };
+        jtf._flush = function (next) {
+            jtf.push(']');
+            jtf.push(null);
+            next();
+        };
+        return jtf;
     };
     
     if (cb) {
