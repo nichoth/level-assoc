@@ -228,12 +228,31 @@ Assoc.prototype.list = function (type, params, cb) {
         params = {};
     }
     if (!params) params = {};
-    var start = params.start === undefined ? null : params.start;
-    var end = params.end;
+    
+    var start = [ type, null ];
+    if (params.start !== undefined) {
+        start = [ type, params.start ];
+    }
+    else if (params.gte !== undefined) {
+        start = [ type, params.gte ];
+    }
+    else if (params.gt !== undefined) {
+        start = [ type, params.gt, null ];
+    }
+    
+    var end = [ type, params.end ];
+    if (params.lte !== undefined) {
+        end = [ type, params.lte ];
+    }
+    else if (params.lt !== undefined) {
+        end = [ type, params.lt.replace(/.$/, function (c) {
+            return String.fromCharCode(c.charCodeAt(0) - 1) + '\xff';
+        }) ];
+    }
     
     var opts = {
-        start: bytewise.encode([ type, start ]).toString('hex'),
-        end: bytewise.encode([ type, end ]).toString('hex')
+        start: bytewise.encode(start).toString('hex'),
+        end: bytewise.encode(end).toString('hex')
     };
     var tr = new Transform({ objectMode: true });
     
