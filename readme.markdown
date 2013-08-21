@@ -184,11 +184,21 @@ For each augmented `relation` function, `row[relation](cb)` will return a stream
 with the list of the related rows. Optionally pass in `cb(err, rows)` to buffer
 the list of `rows`.
 
-## var rec = assoc.list(type, cb)
+## var rec = assoc.list(type, opts={}, cb)
 
 Return an object stream `rec` with all the rows of `type`.
 
 `cb(err, rows)` will fire with the buffered array of results `rows` if provided.
+
+Optionally:
+
+* `opts.follow` - keep sending new updates as they occur, default: false
+* `opts.gt` - key to start at, exclusive
+* `opts.gte` - key to start at, inclusive
+* `opts.lt` - key to end at, exclusive
+* `opts.lte` - key to end at, inclusive
+* `opts.start` - key to start at, inclusive (same as `opts.gte`)
+* `opts.end` - key to end at, inclusive
 
 ## rec.createStream()
 
