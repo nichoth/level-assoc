@@ -138,8 +138,9 @@ function createRowStream (row, isKV) {
         
         function ready () {
             var s = JSON.stringify(x);
-            rs.push(sfirst ? s : ',' + s);
+            var sfirst_ = sfirst;
             sfirst = false;
+            rs.push(sfirst_ ? s : ',' + s);
         }
         
         function finish () {
@@ -227,10 +228,12 @@ Assoc.prototype.list = function (type, params, cb) {
         params = {};
     }
     if (!params) params = {};
+    var start = params.start === undefined ? null : params.start;
+    var end = params.end;
     
     var opts = {
-        start: bytewise.encode([ type, null ]).toString('hex'),
-        end: bytewise.encode([ type, undefined ]).toString('hex')
+        start: bytewise.encode([ type, start ]).toString('hex'),
+        end: bytewise.encode([ type, end ]).toString('hex')
     };
     var tr = new Transform({ objectMode: true });
     
