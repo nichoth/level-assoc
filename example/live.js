@@ -14,7 +14,13 @@ db.batch(require('./data.json').map(function (row) {
 
 function ready () {
     var stream = assoc.list('hackerspace', {
-        lte: 'noisebridge'
+        lte: 'noisebridge',
+        follow: true
     });
     stream.on('data', console.log);
 }
+
+setInterval(function () {
+    var name = Math.floor(Math.random() * Math.pow(16, 8).toString(16));
+    db.put(name, { type: 'hackerspace', name: name });
+}, 500);

@@ -2,6 +2,7 @@ var bytewise = require('bytewise');
 var Transform = require('readable-stream/transform');
 var Readable = require('readable-stream/readable');
 var foreignKey = require('foreign-key');
+var liveStream = require('level-live-stream');
 
 module.exports = Assoc;
 function Assoc (db) {
@@ -252,7 +253,8 @@ Assoc.prototype.list = function (type, params, cb) {
     
     var opts = {
         start: bytewise.encode(start).toString('hex'),
-        end: bytewise.encode(end).toString('hex')
+        end: bytewise.encode(end).toString('hex'),
+        reverse: params.reverse
     };
     var tr = new Transform({ objectMode: true });
     
@@ -307,7 +309,17 @@ Assoc.prototype.list = function (type, params, cb) {
         tr.on('end', function () { cb(null, results) });
     }
     
-    return this._sublevel.createReadStream(opts).pipe(tr);
+    if (params.follow) {
+        return liveStream(this._sublevel, {
+            tail: true,
+            //old: params.old === undefined ? true : params.old,
+            old: false,
+            min: opts.start,
+            max: opts.end,
+            reverse: opts.reverse
+        }).pipe(tr);
+    }
+    else return this._sublevel.createReadStream(opts).pipe(tr);
 };
 
 function Type (cb) {
