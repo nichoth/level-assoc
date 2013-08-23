@@ -12,6 +12,7 @@ function Assoc (db) {
     this._foreign = {};
     this._has = [];
     this._hasKeys = {};
+    this._belongs = {};
     
     var self = this;
     db.hooks.post({ start: '', end: '~' }, function (change) {
@@ -35,11 +36,17 @@ Assoc.prototype.add = function (key) {
     this._hasKeys[key] = {};
     
     var self = this;
-    return new Type(function (k, type) {
+    return new Type({ hasMany: hasMany, belongsTo: belongsTo });
+    
+    function hasMany (k, type) {
         self._has.push([ type, k, key ]);
         self._hasKeys[key][k] = type;
         self._foreign[key].add(k, type, key);
-    });
+    }
+    
+    function belongsTo (k) {
+        self._belongs[key] = k;
+    }
 };
 
 Assoc.prototype._postPut = function (key, value, cb) {
@@ -169,13 +176,11 @@ function createRowStream (row, isKV) {
     }
 }
 
-Assoc.prototype._augment = function (key, row) {
+Assoc.prototype._augment = function (key, row, cb) {
     var self = this;
-    var keyTypes = this._hasKeys[row.type];
-    if (!keyTypes) return;
-    
-    Object.keys(keyTypes).forEach(function (k) {
-        var type = keyTypes[k];
+    var many = this._hasKeys[row.type];
+    if (many) Object.keys(many).forEach(function (k) {
+        var type = many[k];
         row[k] = function (cb) {
             var s = self._rowStream(row.type, key, k);
             if (cb) {
@@ -187,6 +192,12 @@ Assoc.prototype._augment = function (key, row) {
             return s;
         };
     });
+    var belongs = this._belongs[row.type];
+    if (belongs && row[belongs]) {
+        self.get(row[belongs], function (err, srow) {
+            
+        });
+    }
 };
 
 Assoc.prototype._rowStream = function (topType, topKey, key) {
@@ -322,13 +333,13 @@ Assoc.prototype.list = function (type, params, cb) {
     else return this._sublevel.createReadStream(opts).pipe(tr);
 };
 
-function Type (cb) {
-    this._cb = cb;
+function Type (fns) {
+    this._fns = fns;
 }
 
 Type.prototype.hasMany = function (key, type) {
     if (typeof type === 'string') type = [ 'type', type ];
-    this._cb(key, type);
+    this._fns.hasMany(key, type);
     return this;
 };
 
@@ -339,5 +350,6 @@ Type.prototype.belongsTo = function (type, key) {
         '`key` cannot be inferred with a non-string type.'
         + ' Specify a key.'
     );
+    this._fns.belongsTo(type, key);
     return this;
 };
