@@ -103,15 +103,17 @@ Assoc.prototype.get = function (topKey, cb) {
     });
     
     return {
-        createStream: function () {
-            stream = createRowStream();
+        createStream: function (opts) {
+            stream = createRowStream(opts);
             if (row) stream._setRow(row);
             return stream;
         }
     };
 };
 
-function createRowStream (row, isKV) {
+function createRowStream (row, opts) {
+    if (!opts) opts = {};
+    
     var rs = new Readable;
     var fkeys, stream, first = true, sfirst;
     
@@ -129,7 +131,7 @@ function createRowStream (row, isKV) {
             var skey = JSON.stringify(key);
             rs.push((first ? skey : ',' + skey) + ':[');
             first = false;
-            stream = (isKV ? row.value : row)[key]();
+            stream = (opts.keys ? row.value : row)[key]();
             stream.on('finish', function () {
                 stream = null;
                 rs.push(']');
@@ -152,7 +154,7 @@ function createRowStream (row, isKV) {
         }
         
         function finish () {
-            rs.push(isKV ? '}}' : '}');
+            rs.push(opts.keys ? '}}' : '}');
             return rs.push(null);
         }
     };
@@ -161,7 +163,7 @@ function createRowStream (row, isKV) {
     return rs;
     
     function begin () {
-        var value = isKV ? row.value : row;
+        var value = opts.keys ? row.value : row;
         fkeys = Object.keys(value).filter(function (key) {
             return typeof value[key] === 'function';
         });
@@ -171,7 +173,9 @@ function createRowStream (row, isKV) {
             return JSON.stringify(key) + ':' + JSON.stringify(value[key]);
         }).filter(Boolean).join(',');
         
-        if (isKV) s = '{"key":' + JSON.stringify(row.key) + ',"value":' + s;
+        if (opts.keys) {
+            s = '{"key":' + JSON.stringify(row.key) + ',"value":' + s;
+        }
         rs.push(s);
     }
 }
@@ -287,12 +291,14 @@ Assoc.prototype.list = function (type, params, cb) {
         });
     };
     
-    tr.createStream = function () {
+    tr.createStream = function (opts) {
+        if (!opts) opts = {};
         var stream = new Transform({ objectMode: true });
         var first = true;
         
         stream._transform = function (row, enc, next) {
-            var rs = createRowStream(row, true);
+            opts.keys = true;
+            var rs = createRowStream(row, opts);
             if (!first) stream.push(',');
             first = false;
             
