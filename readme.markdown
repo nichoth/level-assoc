@@ -199,6 +199,8 @@ Optionally:
 * `opts.lte` - key to end at, inclusive
 * `opts.start` - key to start at, inclusive (same as `opts.gte`)
 * `opts.end` - key to end at, inclusive
+* `opts.keys` - when false, only return `"value"` contents in results.
+default: true
 
 ## rec.createStream()
 

@@ -180,13 +180,19 @@ function createRowStream (row, opts) {
     }
 }
 
-Assoc.prototype._augment = function (key, row, cb) {
+Assoc.prototype._augment = function (key, row, opts, cb) {
+    if (typeof opts === 'function') {
+        cb = opts;
+        opts = {};
+    }
+    if (!opts) opts = {};
+    
     var self = this;
     var many = this._hasKeys[row.type];
     if (many) Object.keys(many).forEach(function (k) {
         var type = many[k];
         row[k] = function (cb) {
-            var s = self._rowStream(row.type, key, k);
+            var s = self._rowStream(row.type, key, k, opts);
             if (cb) {
                 var results = [];
                 s.on('error', cb);
@@ -204,7 +210,9 @@ Assoc.prototype._augment = function (key, row, cb) {
     }
 };
 
-Assoc.prototype._rowStream = function (topType, topKey, key) {
+Assoc.prototype._rowStream = function (topType, topKey, key, opts) {
+    if (!opts) opts = {};
+    
     var self = this;
     var start = [ null, topType, topKey, key ];
     var end = [ null, topType, topKey, key, undefined ];
@@ -227,7 +235,10 @@ Assoc.prototype._rowStream = function (topType, topKey, key) {
             else if (err) return next(err);
             
             self._augment(parts[4], value);
-            tr.push({ key: parts[4], value: value });
+            
+            if (opts.keys === false) tr.push(value)
+            else tr.push({ key: parts[4], value: value });
+            
             next();
         });
     };
@@ -284,9 +295,13 @@ Assoc.prototype.list = function (type, params, cb) {
             }
             else if (err) return next(err);
             
-            if (params.augment !== false) self._augment(key[1], value);
+            if (params.augment !== false) {
+                self._augment(key[1], value, { keys: params.keys === false });
+            }
             
-            tr.push({ key: key[1], value: value });
+            if (params.keys === false) tr.push(value)
+            else tr.push({ key: key[1], value: value })
+            
             next();
         });
     };
