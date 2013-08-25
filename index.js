@@ -62,13 +62,7 @@ Assoc.prototype._postPut = function (key, value, cb) {
     });
     
     for (var i = 0, li = this._has.length; i < li; i++) {
-        var ts = this._has[i][0];
-        var cur = value;
-        for (var cur, j = 0, lj = ts.length - 1; j < lj; j++) {
-            cur = cur[ts[j]];
-            if (cur === undefined) break;
-        }
-        if (j !== lj || cur !== ts[j]) continue;
+        if (!matches(value, this._has[i][0])) continue;
         
         var topKey = this._has[i][2];
         var fkey = [ null, topKey ]
@@ -374,3 +368,12 @@ Type.prototype.belongsTo = function (type, key) {
     this._fns.belongsTo(type, key);
     return this;
 };
+
+function matches (obj, keypath) {
+    var cur = obj;
+    for (var cur, i = 0, l = keypath.length - 1; i < l; i++) {
+        cur = cur[keypath[i]];
+        if (cur === undefined) return false;
+    }
+    return cur === keypath[i];
+}
