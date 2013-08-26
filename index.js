@@ -2,7 +2,10 @@ var bytewise = require('bytewise');
 var Transform = require('readable-stream/transform');
 var Readable = require('readable-stream/readable');
 var foreignKey = require('foreign-key');
-var liveStream = require('level-live-stream');
+var inherits = require('util').inherits;
+var EventEmitter = require('events').EventEmitter;
+
+inherits(Assoc, EventEmitter);
 
 module.exports = Assoc;
 function Assoc (db) {
@@ -75,8 +78,8 @@ Assoc.prototype._postPut = function (key, value, cb) {
         this._sublevel.put(k, 0, function (err) {
             if (err) cb(err)
             else if (--pending === 0) cb()
-            
         });
+        this.emit('_index', k);
     }
     
     if (pending === 0) cb();
@@ -220,8 +223,9 @@ Assoc.prototype._rowStream = function (topType, topKey, key, params) {
     var tr = new Transform({ objectMode: true });
     tr._transform = function (row, enc, next) {
         var parts = bytewise.decode(Buffer(row.key, 'hex'));
+        if (!parts) return next();
+        
         self.db.get(parts[4], function (err, value) {
-            
             if ((err && err.name === 'NotFoundError')
             || (value && value[topType] !== topKey)) {
                 // lazily remove deleted or stale indexes
@@ -233,6 +237,9 @@ Assoc.prototype._rowStream = function (topType, topKey, key, params) {
             self._augment(parts[4], value);
             
             if (params.keys === false) tr.push(value)
+            else if (params.old === false && row.live === true) {
+                tr.push({ key: parts[4], value: value, _live: true });
+            }
             else tr.push({ key: parts[4], value: value });
             
             next();
@@ -240,7 +247,7 @@ Assoc.prototype._rowStream = function (topType, topKey, key, params) {
     };
     
     if (params.follow) {
-        return createLiveStream(self._sublevel, opts).pipe(tr);
+        return self._createLiveStream(opts).pipe(tr);
     }
     else return self._sublevel.createReadStream(opts).pipe(tr);
 };
@@ -252,6 +259,7 @@ Assoc.prototype.list = function (type, params, cb) {
         params = {};
     }
     if (!params) params = {};
+    if (params.live !== undefined) params.follow = params.live;
     
     var start = [ type, null ];
     if (params.start !== undefined) {
@@ -277,13 +285,16 @@ Assoc.prototype.list = function (type, params, cb) {
     var opts = {
         start: bytewise.encode(start).toString('hex'),
         end: bytewise.encode(end).toString('hex'),
+        old: params.old,
         reverse: params.reverse
     };
     var tr = new Transform({ objectMode: true });
     var pending = 0, ended = false;
+    var liveMode = false;
     
     tr._transform = function (row, enc, next) {
         var key = bytewise.decode(Buffer(row.key, 'hex'));
+        if (!key) return;
         
         self.db.get(key[1], function (err, value) {
             if ((err && err.name === 'NotFoundError')
@@ -297,7 +308,7 @@ Assoc.prototype.list = function (type, params, cb) {
                 self._augment(key[1], value, { keys: params.keys !== false });
             }
             
-            if (params.old !== false) {
+            if (row._old !== true) {
                 if (params.keys === false) tr.push(value)
                 else tr.push({ key: key[1], value: value })
             }
@@ -322,10 +333,11 @@ Assoc.prototype.list = function (type, params, cb) {
                                 next();
                             }
                         }
+                        else if (row._old === true && r._live !== true) {}
                         else if (params.keys === false) {
                             tr.push(r.value)
                         }
-                        else tr.push(r);
+                        else tr.push({ key: r.key, value: r.value });
                     });
                 });
             }
@@ -377,9 +389,9 @@ Assoc.prototype.list = function (type, params, cb) {
     }
     
     if (params.follow) {
-        return createLiveStream(this._sublevel, opts).pipe(tr);
+        return self._createLiveStream(opts).pipe(tr);
     }
-    else return this._sublevel.createReadStream(opts).pipe(tr);
+    else return self._sublevel.createReadStream(opts).pipe(tr);
 };
 
 Assoc.prototype.live = function (name, opts) {
@@ -388,6 +400,45 @@ Assoc.prototype.live = function (name, opts) {
     opts.follow = true;
     opts.old = false;
     return this.list(name, opts);
+};
+
+Assoc.prototype._createLiveStream = function (opts) {
+    var self = this;
+    var db = self._sublevel;
+    
+    var tf = new Transform({ objectMode: true });
+    tf._transform = function (row, enc, next) {
+        if (opts.old === false) row._old = true;
+        tf.push(row);
+        next();
+    };
+    
+    tf._flush = function (next) {
+        if (closed) return next();
+        self.on('_index', onindex);
+        tf.once('close', next);
+    };
+    
+    var closed = false;
+    tf.close = function () {
+        if (closed) return;
+        closed = true;
+        
+        self.removeListener('_index', onindex);
+        tf.push(null);
+        tf.emit('close');
+    };
+    
+    return db.createReadStream({
+        start: opts.start,
+        end: opts.end,
+        reverse: opts.reverse
+    }).pipe(tf);
+    
+    function onindex (key) {
+        if (closed) return;
+        tf.push({ key: key, value: 0, live: true });
+    }
 };
 
 function Type (fns) {
@@ -420,12 +471,3 @@ function matches (obj, keypath) {
     return cur === keypath[i];
 }
 
-function createLiveStream (db, opts) {
-    return liveStream(db, {
-        tail: true,
-        old: opts.old !== false,
-        min: opts.start,
-        max: opts.end,
-        reverse: opts.reverse
-    });
-}
