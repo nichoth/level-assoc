@@ -27,6 +27,7 @@ function Assoc (db) {
             self._postPut(change.key, value, function (err) {
                 if (err) self.db.emit('error', err)
             });
+            self.emit('_put', change.key, value);
         }
         else if (change.type === 'del') {
             // ignore deletes; compaction happens on stream key lookup errors
@@ -79,7 +80,7 @@ Assoc.prototype._postPut = function (key, value, cb) {
             if (err) cb(err)
             else if (--pending === 0) cb()
         });
-        this.emit('_index', k);
+        this.emit('_index', k, fkey);
     }
     
     if (pending === 0) cb();
@@ -290,7 +291,6 @@ Assoc.prototype.list = function (type, params, cb) {
     };
     var tr = new Transform({ objectMode: true });
     var pending = 0, ended = false;
-    var liveMode = false;
     
     tr._transform = function (row, enc, next) {
         var key = bytewise.decode(Buffer(row.key, 'hex'));
@@ -330,7 +330,6 @@ Assoc.prototype.list = function (type, params, cb) {
                         if (r === null) {
                             if (--pending === 0 && ended && !params.follow) {
                                 tr.push(null);
-                                next();
                             }
                         }
                         else if (r._old === true) {}
@@ -416,6 +415,7 @@ Assoc.prototype._createLiveStream = function (opts) {
     tf._flush = function (next) {
         if (closed) return next();
         self.on('_index', onindex);
+        self.on('_put', onput);
         tf.once('close', next);
     };
     
@@ -425,9 +425,12 @@ Assoc.prototype._createLiveStream = function (opts) {
         closed = true;
         
         self.removeListener('_index', onindex);
+        self.removeListener('_put', onput);
+        
         tf.push(null);
         tf.emit('close');
     };
+    var start = bytewise.decode(Buffer(opts.start, 'hex'));
     
     return db.createReadStream({
         start: opts.start,
@@ -439,6 +442,15 @@ Assoc.prototype._createLiveStream = function (opts) {
         if (closed) return;
         if (key >= opts.start && key <= opts.end) {
             tf.push({ key: key, value: 0, live: true });
+        }
+    }
+    
+    function onput (key, value) {
+        if (value && value.type && value.type === start[0]) {
+            var k = bytewise.encode([ value.type, key ]).toString('hex');
+            if (k >= opts.start && k <= opts.end) {
+                tf.push({ key: k, value: value, live: true });
+            }
         }
     }
 };

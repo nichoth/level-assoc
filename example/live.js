@@ -18,7 +18,7 @@ db.batch(rows.map(function (row) {
 }), ready);
 
 function ready () {
-    var stream = assoc.live('hackerspace', { gte: 'sudoroom' });
+    var stream = assoc.live('hackerspace');
     stream.on('data', console.log);
 }
 
