@@ -8,19 +8,23 @@ assoc.add('hackerspace')
     .hasMany('tools', [ 'type', 'tool' ])
 ;
 
-db.batch(require('./data.json').map(function (row) {
+var rows = require('./data.json');
+var spaces = rows.filter(function (row) {
+    return row.value.type === 'hackerspace';
+});
+db.batch(rows.map(function (row) {
     return { type: 'put', key: row.key, value: row.value };
 }), ready);
 
 function ready () {
-    var stream = assoc.list('hackerspace', {
-        lte: 'noisebridge',
-        follow: true
+    var stream = assoc.live('hackerspace', {
+        lte: 'noisebridge'
     });
     stream.on('data', console.log);
 }
 
 setInterval(function () {
     var name = Math.floor(Math.random() * Math.pow(16, 8).toString(16));
-    db.put(name, { type: 'hackerspace', name: name });
+    var space = spaces[Math.floor(Math.random() * spaces.length)].key;
+    db.put(name, { type: 'hacker', name: name, hackerspace: space });
 }, 500);

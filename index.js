@@ -204,8 +204,8 @@ Assoc.prototype._augment = function (key, row, opts, cb) {
     }
 };
 
-Assoc.prototype._rowStream = function (topType, topKey, key, opts) {
-    if (!opts) opts = {};
+Assoc.prototype._rowStream = function (topType, topKey, key, params) {
+    if (!params) params = {};
     
     var self = this;
     var start = [ null, topType, topKey, key ];
@@ -215,6 +215,7 @@ Assoc.prototype._rowStream = function (topType, topKey, key, opts) {
         start: bytewise.encode(start).toString('hex'),
         end: bytewise.encode(end).toString('hex')
     };
+    
     var tr = new Transform({ objectMode: true });
     tr._transform = function (row, enc, next) {
         var parts = bytewise.decode(Buffer(row.key, 'hex'));
@@ -230,16 +231,17 @@ Assoc.prototype._rowStream = function (topType, topKey, key, opts) {
             
             self._augment(parts[4], value);
             
-            if (opts.keys === false) tr.push(value)
+            if (params.keys === false) tr.push(value)
             else tr.push({ key: parts[4], value: value });
             
             next();
         });
     };
-    tr._flush = function (next) {
-        next();
-    };
-    return self._sublevel.createReadStream(opts).pipe(tr);
+    
+    if (params.follow) {
+        return createLiveStream(self._sublevel, opts).pipe(tr);
+    }
+    else return self._sublevel.createReadStream(opts).pipe(tr);
 };
 
 Assoc.prototype.list = function (type, params, cb) {
@@ -289,13 +291,33 @@ Assoc.prototype.list = function (type, params, cb) {
             }
             else if (err) return next(err);
             
-            if (params.augment !== false) {
-                self._augment(key[1], value, { keys: params.keys === false });
+            if (params.augment !== false && !params.expand) {
+                self._augment(key[1], value, { keys: params.keys !== false });
             }
             
             if (params.keys === false) tr.push(value)
             else tr.push({ key: key[1], value: value })
             
+            if (params.expand) {
+                var many = self._hasKeys[row.type];
+                var keys = many && Object.keys(many);
+                if (!keys || !keys.length) return next();
+                
+                keys.forEach(function (k) {
+                    var type = many[k];
+                    var s = self._rowStream(row.type, key[1], k, {
+                        follow: true
+                    });
+                    s.on('readable', function () {
+                        var r = s.read();
+                        if (r === null) return;
+                        if (params.keys === false) {
+                            self.push(r.value)
+                        }
+                        else self.push(r);
+                    });
+                });
+            }
             next();
         });
     };
@@ -336,16 +358,15 @@ Assoc.prototype.list = function (type, params, cb) {
     }
     
     if (params.follow) {
-        return liveStream(this._sublevel, {
-            tail: true,
-            //old: params.old === undefined ? true : params.old,
-            old: false,
-            min: opts.start,
-            max: opts.end,
-            reverse: opts.reverse
-        }).pipe(tr);
+        return createLiveStream(this._sublevel, opts).pipe(tr);
     }
     else return this._sublevel.createReadStream(opts).pipe(tr);
+};
+
+Assoc.prototype.live = function (name, opts) {
+    if (!opts) opts = {};
+    opts.expand = true;
+    return this.list(name, opts);
 };
 
 function Type (fns) {
@@ -376,4 +397,15 @@ function matches (obj, keypath) {
         if (cur === undefined) return false;
     }
     return cur === keypath[i];
+}
+
+function createLiveStream (db, opts) {
+    return liveStream(db, {
+        tail: true,
+        //old: params.old === undefined ? true : params.old,
+        old: false,
+        min: opts.start,
+        max: opts.end,
+        reverse: opts.reverse
+    });
 }
