@@ -437,7 +437,9 @@ Assoc.prototype._createLiveStream = function (opts) {
     
     function onindex (key) {
         if (closed) return;
-        tf.push({ key: key, value: 0, live: true });
+        if (key >= opts.start && key <= opts.end) {
+            tf.push({ key: key, value: 0, live: true });
+        }
     }
 };
 
