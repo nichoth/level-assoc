@@ -192,7 +192,6 @@ Return an object stream `rec` with all the rows of `type`.
 
 Optionally:
 
-* `opts.follow` - keep sending new updates as they occur, default: false
 * `opts.gt` - key to start at, exclusive
 * `opts.gte` - key to start at, inclusive
 * `opts.lt` - key to end at, exclusive
@@ -201,6 +200,19 @@ Optionally:
 * `opts.end` - key to end at, inclusive
 * `opts.keys` - when false, only return `"value"` contents in results.
 default: true
+
+* `opts.follow` - keep sending new updates as they occur, default: false
+* `opts.flat` - produce results in a flat, normalized form with all children
+records at the top-level
+* `opts.old` - when in follow mode, whether to include old results or only new,
+live updates
+
+## var rec = assoc.live(type, opts={}, cb)
+
+Return an object stream the same as `assoc.list()` with `opts.flat` and
+`opts.follow` set to `true` and `opts.old` set to false.
+
+This is very convenient for wiring up real time feeds to a data set.
 
 ## rec.createStream()
 
