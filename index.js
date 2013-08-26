@@ -213,7 +213,8 @@ Assoc.prototype._rowStream = function (topType, topKey, key, params) {
     
     var opts = {
         start: bytewise.encode(start).toString('hex'),
-        end: bytewise.encode(end).toString('hex')
+        end: bytewise.encode(end).toString('hex'),
+        old: params.old
     };
     
     var tr = new Transform({ objectMode: true });
@@ -279,6 +280,7 @@ Assoc.prototype.list = function (type, params, cb) {
         reverse: params.reverse
     };
     var tr = new Transform({ objectMode: true });
+    var pending = 0, ended = false;
     
     tr._transform = function (row, enc, next) {
         var key = bytewise.decode(Buffer(row.key, 'hex'));
@@ -291,35 +293,52 @@ Assoc.prototype.list = function (type, params, cb) {
             }
             else if (err) return next(err);
             
-            if (params.augment !== false && !params.expand) {
+            if (params.augment !== false && !params.flat) {
                 self._augment(key[1], value, { keys: params.keys !== false });
             }
             
-            if (params.keys === false) tr.push(value)
-            else tr.push({ key: key[1], value: value })
+            if (params.old !== false) {
+                if (params.keys === false) tr.push(value)
+                else tr.push({ key: key[1], value: value })
+            }
             
-            if (params.expand) {
-                var many = self._hasKeys[row.type];
+            if (params.flat) {
+                var many = self._hasKeys[value.type];
                 var keys = many && Object.keys(many);
                 if (!keys || !keys.length) return next();
+                pending += keys.length;
                 
                 keys.forEach(function (k) {
                     var type = many[k];
-                    var s = self._rowStream(row.type, key[1], k, {
-                        follow: true
+                    var s = self._rowStream(value.type, key[1], k, {
+                        follow: params.follow,
+                        old: params.old
                     });
                     s.on('readable', function () {
                         var r = s.read();
-                        if (r === null) return;
-                        if (params.keys === false) {
-                            self.push(r.value)
+                        if (r === null) {
+                            if (--pending === 0 && ended && !params.follow) {
+                                tr.push(null);
+                                next();
+                            }
                         }
-                        else self.push(r);
+                        else if (params.keys === false) {
+                            tr.push(r.value)
+                        }
+                        else tr.push(r);
                     });
                 });
             }
             next();
         });
+    };
+    
+    tr._flush = function (next) {
+        ended = true;
+        if (!params.follow && pending === 0) {
+            tr.push(null);
+            next();
+        }
     };
     
     tr.createStream = function (opts) {
@@ -365,7 +384,9 @@ Assoc.prototype.list = function (type, params, cb) {
 
 Assoc.prototype.live = function (name, opts) {
     if (!opts) opts = {};
-    opts.expand = true;
+    opts.flat = true;
+    opts.follow = true;
+    opts.old = false;
     return this.list(name, opts);
 };
 
@@ -402,8 +423,7 @@ function matches (obj, keypath) {
 function createLiveStream (db, opts) {
     return liveStream(db, {
         tail: true,
-        //old: params.old === undefined ? true : params.old,
-        old: false,
+        old: opts.old !== false,
         min: opts.start,
         max: opts.end,
         reverse: opts.reverse
