@@ -66,8 +66,8 @@ Using the same dataset, we can stream stringify the nested records for sudoroom:
 
 ``` js
 var sub = require('level-sublevel');
-var level = require('level-test')();
-var db = sub(level('test', { valueEncoding: 'json' }));
+var level = require('level');
+var db = sub(level('hackerspaces.db', { valueEncoding: 'json' }));
 
 var assoc = require('level-assoc')(db);
 assoc.add('hackerspace')
@@ -97,8 +97,8 @@ You can also pull down a list of all hackerspaces as a stream by calling
 
 ``` js
 var sub = require('level-sublevel');
-var level = require('level-test')();
-var db = sub(level('test', { valueEncoding: 'json' }));
+var level = require('level');
+var db = sub(level('hackerspaces.db', { valueEncoding: 'json' }));
 
 var assoc = require('level-assoc')(db);
 assoc.add('hackerspace')
@@ -130,6 +130,84 @@ output:
      name: 'sudoroom',
      hackers: [Function],
      tools: [Function] } }
+```
+
+## live
+
+To get a stream of live results, just use the `.live()` function instead of
+`.list()`.
+
+This example prints out all of the new records associated with the entire list
+of hackerspaces with names greater than or equal to `"sudoroom"`, but only the
+new live entries.
+
+``` js
+var sub = require('level-sublevel');
+var level = require('level');
+var db = sub(level('hackerspaces.db', { valueEncoding: 'json' }));
+
+var assoc = require('../')(db);
+assoc.add('hackerspace')
+    .hasMany('hackers', [ 'type', 'hacker' ])
+    .hasMany('tools', [ 'type', 'tool' ])
+;
+
+var rows = require('./data.json');
+var spaces = rows.map(function (row) {
+    return row.value.type === 'hackerspace' && row.key;
+}).filter(Boolean);
+
+db.batch(rows.map(function (row) {
+    return { type: 'put', key: row.key, value: row.value };
+}), ready);
+
+function ready () {
+    var stream = assoc.live('hackerspace', { gte: 'sudoroom' });
+    stream.on('data', console.log);
+}
+
+setTimeout(function () {
+    var name = 'x' + Math.floor(Math.random() * Math.pow(16, 8)).toString(16);
+    db.put(name, { type: 'hackerspace', name: name });
+    spaces.push(name);
+}, 2200);
+
+setInterval(function () {
+    var name = Math.floor(Math.random() * Math.pow(16, 8)).toString(16);
+    var space = spaces[Math.floor(Math.random() * spaces.length)];
+    db.put(name, { type: 'hacker', name: name, hackerspace: space });
+}, 500);
+```
+
+In this example, we even create a new hackerspace with a name greater than
+`"sudoroom"` (`"x4a95e2e0"`) and we see its entry plus all its children entries
+in the live feed, even though it was created after the live feed started!
+
+```
+$ node live.js 
+{ key: '1a800a43',
+  value: { type: 'hacker', name: '1a800a43', hackerspace: 'sudoroom' } }
+{ key: '2977298b',
+  value: { type: 'hacker', name: '2977298b', hackerspace: 'sudoroom' } }
+{ key: '14bd8f5b',
+  value: { type: 'hacker', name: '14bd8f5b', hackerspace: 'sudoroom' } }
+{ key: 'x4a95e2e0',
+  value: { type: 'hackerspace', name: 'x4a95e2e0' } }
+{ key: '96c84f7c',
+  value: { type: 'hacker', name: '96c84f7c', hackerspace: 'sudoroom' } }
+{ key: '4beb63dc',
+  value: { type: 'hacker', name: '4beb63dc', hackerspace: 'sudoroom' } }
+{ key: 'cf55e9e8',
+  value: { type: 'hacker', name: 'cf55e9e8', hackerspace: 'sudoroom' } }
+{ key: '8ccc3db6',
+  value: { type: 'hacker', name: '8ccc3db6', hackerspace: 'sudoroom' } }
+{ key: '22134980',
+  value: { type: 'hacker', name: '22134980', hackerspace: 'x4a95e2e0' } }
+{ key: '59653218',
+  value: { type: 'hacker', name: '59653218', hackerspace: 'sudoroom' } }
+{ key: '3b80c2a7',
+  value: { type: 'hacker', name: '3b80c2a7', hackerspace: 'x4a95e2e0' } }
+^C
 ```
 
 # methods
