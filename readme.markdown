@@ -9,10 +9,12 @@ for [leveldb](https://github.com/rvagg/node-levelup)
 
 # example
 
+## fetch associated documents
+
 ``` js
 var sub = require('level-sublevel');
-var level = require('level-test')();
-var db = sub(level('test', { valueEncoding: 'json' }));
+var level = require('level');
+var db = sub(level('hackerspaces.db', { valueEncoding: 'json' }));
 
 var assoc = require('level-assoc')(db);
 assoc.add('hackerspace')
@@ -31,17 +33,8 @@ db.batch(require('./data.json').map(function (row) {
 
 function ready () {
     assoc.get('sudoroom', function (err, room) {
-        console.log('SUDOROOM=', room);
-        room.hackers().on('data', function (r) {
-            console.log('HACKER', r.value)
-        });
-    });
-
-    assoc.get('8d9a83', function (err, tool) {
-        console.log('TOOL=', tool);
-        tool.usage().on('data', function (r) {
-            console.log('USAGE', r.value)
-        });
+        console.log(room);
+        room.hackers().on('data', console.log);
     });
 }
 ```
@@ -70,24 +63,24 @@ given this `data.json` in the database:
 ]
 ```
 
-the program prints:
+the program first prints the record for sudoroom,
+then prints all the hackers at sudoroom:
 
 ```
-SUDOROOM= { type: 'hackerspace',
+{ type: 'hackerspace',
   name: 'sudoroom',
   hackers: [Function],
   tools: [Function] }
-TOOL= { type: 'tool',
-  name: '3d printer',
-  hackerspace: 'sudoroom',
-  usage: [Function] }
-HACKER { type: 'hacker', name: 'maxogden', hackerspace: 'sudoroom' }
-USAGE { type: 'usage', tool: '8d9a83', minutes: '20', user: 'yardena' }
-HACKER { type: 'hacker', name: 'mk30', hackerspace: 'sudoroom' }
-USAGE { type: 'usage', tool: '8d9a83', minutes: '45', user: 'maxogden' }
-HACKER { type: 'hacker', name: 'substack', hackerspace: 'sudoroom' }
-HACKER { type: 'hacker', name: 'wrought', hackerspace: 'sudoroom' }
-HACKER { type: 'hacker', name: 'yardena', hackerspace: 'sudoroom' }
+{ key: 'maxogden',
+  value: { type: 'hacker', name: 'maxogden', hackerspace: 'sudoroom' } }
+{ key: 'mk30',
+  value: { type: 'hacker', name: 'mk30', hackerspace: 'sudoroom' } }
+{ key: 'substack',
+  value: { type: 'hacker', name: 'substack', hackerspace: 'sudoroom' } }
+{ key: 'wrought',
+  value: { type: 'hacker', name: 'wrought', hackerspace: 'sudoroom' } }
+{ key: 'yardena',
+  value: { type: 'hacker', name: 'yardena', hackerspace: 'sudoroom' } }
 ```
 
 ## stringify
