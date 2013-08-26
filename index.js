@@ -237,8 +237,8 @@ Assoc.prototype._rowStream = function (topType, topKey, key, params) {
             self._augment(parts[4], value);
             
             if (params.keys === false) tr.push(value)
-            else if (params.old === false && row.live === true) {
-                tr.push({ key: parts[4], value: value, _live: true });
+            else if (params.old === false && row.live !== true) {
+                tr.push({ key: parts[4], value: value, _old: true });
             }
             else tr.push({ key: parts[4], value: value });
             
@@ -333,11 +333,11 @@ Assoc.prototype.list = function (type, params, cb) {
                                 next();
                             }
                         }
-                        else if (row._old === true && r._live !== true) {}
+                        else if (r._old === true) {}
                         else if (params.keys === false) {
                             tr.push(r.value)
                         }
-                        else tr.push({ key: r.key, value: r.value });
+                        else tr.push(r);
                     });
                 });
             }
@@ -398,7 +398,7 @@ Assoc.prototype.live = function (name, opts) {
     if (!opts) opts = {};
     opts.flat = true;
     opts.follow = true;
-    opts.old = false;
+    if (opts.old === undefined) opts.old = false;
     return this.list(name, opts);
 };
 
