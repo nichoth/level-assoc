@@ -355,6 +355,9 @@ Assoc.prototype.list = function (type, params, cb) {
     tr.createStream = function (opts) {
         if (!opts) opts = {};
         var stream = new Transform({ objectMode: true });
+        if (params.follow && params.autoclose !== false) {
+            whenFinished(stream, function () { liveStream.close() });
+        }
         
         if (params.flat) {
             stream._transform = function (row, enc, next) {
@@ -395,8 +398,16 @@ Assoc.prototype.list = function (type, params, cb) {
         tr.on('end', function () { cb(null, results) });
     }
     
+    var liveStream;
     if (params.follow) {
-        return self._createLiveStream(opts).pipe(tr);
+        liveStream = self._createLiveStream(opts);
+        if (params.autoclose === false) {
+            return liveStream.pipe(tr);
+        }
+        else return whenFinished(
+            liveStream.pipe(tr),
+            function () { liveStream.close() }
+        );
     }
     else return self._sublevel.createReadStream(opts).pipe(tr);
 };
@@ -493,3 +504,22 @@ function matches (obj, keypath) {
     return cur === keypath[i];
 }
 
+function whenFinished (stream, cb) {
+    var pipeTargets = 0;
+    var prevPipe = stream.pipe;
+    stream.pipe = function (dst) {
+        pipeTargets ++;
+        var closed = false;
+        dst.once('unpipe', onclose);
+        dst.once('close', onclose);
+        return prevPipe.apply(this, arguments);
+        
+        function onclose () {
+            if (closed) return;
+            closed = true;
+            if (-- pipeTargets === 0) cb();
+            stream.pipe = prevPipe;
+        }
+    };
+    return stream;
+}
