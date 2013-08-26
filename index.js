@@ -355,8 +355,16 @@ Assoc.prototype.list = function (type, params, cb) {
     tr.createStream = function (opts) {
         if (!opts) opts = {};
         var stream = new Transform({ objectMode: true });
-        var first = true;
         
+        if (params.flat) {
+            stream._transform = function (row, enc, next) {
+                this.push(JSON.stringify(row) + '\n');
+                next();
+            };
+            return tr.pipe(stream);
+        }
+        
+        var first = true;
         stream._transform = function (row, enc, next) {
             opts.keys = true;
             var rs = createRowStream(row, opts);
