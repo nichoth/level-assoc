@@ -1,9 +1,14 @@
-var bytewise = require('bytewise');
 var Transform = require('readable-stream/transform');
 var Readable = require('readable-stream/readable');
+
+var bytewise = require('bytewise');
 var foreignKey = require('foreign-key');
+
 var inherits = require('util').inherits;
 var EventEmitter = require('events').EventEmitter;
+
+var Type = require('./lib/type.js');
+var matches = require('./lib/matches.js');
 
 inherits(Assoc, EventEmitter);
 
@@ -398,6 +403,10 @@ Assoc.prototype.list = function (type, params, cb) {
         tr.on('end', function () { cb(null, results) });
     }
     
+    if (params.meta) {
+        tr.push({ type: 'meta', value: self._hasKeys });
+    }
+    
     var liveStream;
     if (params.follow) {
         liveStream = self._createLiveStream(opts);
@@ -474,34 +483,10 @@ Assoc.prototype._createLiveStream = function (opts) {
     }
 };
 
-function Type (fns) {
-    this._fns = fns;
-}
-
-Type.prototype.hasMany = function (key, type) {
-    if (typeof type === 'string') type = [ 'type', type ];
-    this._fns.hasMany(key, type);
-    return this;
-};
-
-Type.prototype.belongsTo = function (type, key) {
-    if (key === undefined && typeof type === 'string') key = [ type ];
-    if (typeof type === 'string') type = [ 'type', type ];
-    if (key === undefined) throw new Error(
-        '`key` cannot be inferred with a non-string type.'
-        + ' Specify a key.'
-    );
-    this._fns.belongsTo(type, key);
-    return this;
-};
-
-function matches (obj, keypath) {
-    var cur = obj;
-    for (var cur, i = 0, l = keypath.length - 1; i < l; i++) {
-        cur = cur[keypath[i]];
-        if (cur === undefined) return false;
-    }
-    return cur === keypath[i];
+function readable () {
+    var rs = new Readable({ objectMode: true });
+    rs._read = function () {};
+    return rs;
 }
 
 function whenFinished (stream, cb) {
