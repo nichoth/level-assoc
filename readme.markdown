@@ -254,6 +254,7 @@ default: true
 records at the top-level
 * `opts.old` - when in follow mode, whether to include old results or only new,
 live updates
+* `opts.meta` - include a row of metadata for `require('level-assoc/parse')`
 
 ## var rec = assoc.live(type, opts={}, cb)
 
@@ -279,6 +280,12 @@ array path `filterKey`.
 ## t.belongsTo(key)
 
 TODO. Currently a no-op.
+
+# `require('level-assoc/parse')()`
+
+Reconstruct a serialized list or live stream with `opts.flat` and `opts.meta`.
+
+This is useful for browser code.
 
 # install
 

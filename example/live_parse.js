@@ -19,9 +19,8 @@ function ready () {
     assoc.live('hackerspace', { old: true, meta: true }).createStream()
         .pipe(parser())
         .pipe(through(function (row) {
-            console.log(row.key);
             row.value.hackers().on('data', function (h) {
-                console.log('  ', h);
+                console.log(row.key, ' ', h);
             });
         })
     );
