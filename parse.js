@@ -1,7 +1,6 @@
 var through = require('through');
 var combine = require('stream-combiner');
 var split = require('split');
-var Readable = require('readable-stream');
 var matches = require('./lib/matches.js');
 
 module.exports = function () {
@@ -44,12 +43,22 @@ module.exports = function () {
     function augment (row) {
         var m = meta[row.value.type];
         Object.keys(m).forEach(function (key) {
-            var rs = new Readable({ objectMode: true });
-            rs._read = function () {};
+            var rs = through().pause();
             
             streams[row.value.type][row.key][key] = rs;
             
-            row.value[key] = function () { return rs };
+            row.value[key] = function () {
+                var resume = rs.resume, pause = rs.pause;
+                var paused = false;
+                rs.resume = function () { paused = false };
+                rs.pause = function () { paused = true };
+                process.nextTick(function () {
+                    rs.resume = resume;
+                    rs.pause = pause;
+                    if (!paused) resume();
+                });
+                return rs;
+            };
         });
         return row;
     }
