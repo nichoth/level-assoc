@@ -290,7 +290,7 @@ array path `filterKey`.
 
 TODO. Currently a no-op.
 
-# `require('level-assoc/parse')()`
+## `require('level-assoc/parse')()`
 
 Reconstruct a serialized list or live stream with `opts.flat` and `opts.meta`.
 
