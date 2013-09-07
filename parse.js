@@ -3,10 +3,12 @@ var combine = require('stream-combiner');
 var split = require('split');
 var matches = require('./lib/matches.js');
 
-module.exports = function (streams) {
-    if (!streams) streams = {};
+module.exports = function (opts) {
+    if (!opts) opts = {};
+    var streams = {};
     var meta;
     var stream = combine(split(), through(write));
+    stream.pause = function () {};
     return stream;
     
     function write (buf) {
@@ -49,6 +51,8 @@ module.exports = function (streams) {
         var m = meta[row.value.type];
         Object.keys(m).forEach(function (key) {
             var rs = through().pause();
+            rs.startKeys = [ null, row.value.type, row.key, key ];
+            rs.endKeys = [ null, row.value.type, row.key, key, undefined ];
             
             streams[row.value.type][row.key][key] = rs;
             
