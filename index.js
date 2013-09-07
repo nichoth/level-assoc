@@ -295,6 +295,10 @@ Assoc.prototype.list = function (type, params, cb) {
         reverse: params.reverse
     };
     var tr = new Transform({ objectMode: true });
+    tr.startKey = opts.start;
+    tr.startKeys = start;
+    tr.endKey = opts.end;
+    tr.endKeys = end;
     var pending = 0, ended = false;
     
     tr._transform = function (row, enc, next) {
