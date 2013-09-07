@@ -474,7 +474,7 @@ Assoc.prototype.track = function (opts) {
         dup.push(decode.read());
     });
     
-    var track = self._tracker({ objectMode: true });
+    var track = self._tracker({ objectMode: true, keyMap: keyMap });
     track.pipe(decode);
     
     var dup = new Transform({ objectMode: true });
@@ -483,6 +483,13 @@ Assoc.prototype.track = function (opts) {
         next();
     };
     return dup;
+    
+    function keyMap (key) {
+        if (Array.isArray(key)) {
+            return bytewise.encode(key).toString('hex');
+        }
+        else return key;
+    }
 };
 
 Assoc.prototype._createLiveStream = function (opts) {

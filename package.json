@@ -11,7 +11,7 @@
     "through": "~2.3.4",
     "stream-combiner": "0.0.2",
     "split": "~0.2.10",
-    "level-track": "~0.0.0"
+    "level-track": "~0.1.0"
   },
   "devDependencies": {
     "tape": "~1.0.4",
