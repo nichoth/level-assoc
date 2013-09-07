@@ -57,6 +57,7 @@ module.exports = function (opts) {
             streams[row.value.type][row.key][key] = rs;
             
             row.value[key] = function () {
+                stream.emit('augment', row, key, rs);
                 var resume = rs.resume, pause = rs.pause;
                 var paused = false;
                 rs.resume = function () { paused = false };
