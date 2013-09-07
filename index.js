@@ -16,7 +16,7 @@ module.exports = Assoc;
 function Assoc (db) {
     if (!(this instanceof Assoc)) return new Assoc(db);
     this.db = db;
-    this._sublevel = db.sublevel('assoc');
+    this.sublevel = db.sublevel('assoc');
     this._foreign = {};
     this._has = [];
     this._hasKeys = {};
@@ -65,7 +65,7 @@ Assoc.prototype._postPut = function (key, value, cb) {
     var pending = 1;
     
     var k = bytewise.encode([ value.type, key ]).toString('hex');
-    this._sublevel.put(k, 0, function (err) {
+    this.sublevel.put(k, 0, function (err) {
         if (err) cb(err)
         else if (--pending === 0) cb()
     });
@@ -81,7 +81,7 @@ Assoc.prototype._postPut = function (key, value, cb) {
         pending ++;
         
         var k = bytewise.encode(fkey).toString('hex');
-        this._sublevel.put(k, 0, function (err) {
+        this.sublevel.put(k, 0, function (err) {
             if (err) cb(err)
             else if (--pending === 0) cb()
         });
@@ -240,7 +240,7 @@ Assoc.prototype._rowStream = function (topType, topKey, key, params) {
             if ((err && err.name === 'NotFoundError')
             || (value && value[topType] !== topKey)) {
                 // lazily remove deleted or stale indexes
-                self._sublevel.del(row.key);
+                self.sublevel.del(row.key);
                 return next();
             }
             else if (err) return next(err);
@@ -260,7 +260,7 @@ Assoc.prototype._rowStream = function (topType, topKey, key, params) {
     if (params.follow) {
         return self._createLiveStream(opts).pipe(tr);
     }
-    else return self._sublevel.createReadStream(opts).pipe(tr);
+    else return self.sublevel.createReadStream(opts).pipe(tr);
 };
 
 Assoc.prototype.list = function (type, params, cb) {
@@ -313,7 +313,7 @@ Assoc.prototype.list = function (type, params, cb) {
         self.db.get(key[1], function (err, value) {
             if ((err && err.name === 'NotFoundError')
             || (value && value.type !== type)) {
-                self._sublevel.del(row.key);
+                self.sublevel.del(row.key);
                 return next();
             }
             else if (err) return next(err);
@@ -427,7 +427,7 @@ Assoc.prototype.list = function (type, params, cb) {
             function () { liveStream.close() }
         );
     }
-    else return self._sublevel.createReadStream(opts).pipe(tr);
+    else return self.sublevel.createReadStream(opts).pipe(tr);
 };
 
 Assoc.prototype.live = function (name, opts) {
@@ -440,7 +440,7 @@ Assoc.prototype.live = function (name, opts) {
 
 Assoc.prototype._createLiveStream = function (opts) {
     var self = this;
-    var db = self._sublevel;
+    var db = self.sublevel;
     
     var tf = new Transform({ objectMode: true });
     tf._transform = function (row, enc, next) {
