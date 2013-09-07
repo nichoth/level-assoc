@@ -3,7 +3,7 @@ var combine = require('stream-combiner');
 var split = require('split');
 var matches = require('./lib/matches.js');
 
-module.exports = function () {
+module.exports = function (rowLookup) {
     var streams = {};
     var meta;
     return combine(split(), through(write));
@@ -25,18 +25,22 @@ module.exports = function () {
             this.queue(augment(row));
         }
         else if (row && row.value) {
-            Object.keys(streams).forEach(function (key) {
-                if (!row.value[key]) return;
-                if (!streams[key][row.value[key]]) return;
+            var matched = false;
+            for (var key in streams) {
+                if (!row.value[key]) continue;
+                if (!streams[key][row.value[key]]) continue;
                 
                 var s = streams[key][row.value[key]];
                 if (!s) return;
-                Object.keys(meta[key]).forEach(function (k) {
+                for (var k in meta[key]) {
                     if (matches(row.value, meta[key][k])) {
                         s[k].push(row);
+                        matched = true;
+                        break;
                     }
-                });
-            });
+                }
+            }
+            if (!matched && rowLookup) rowLookup(row);
         }
     }
     
