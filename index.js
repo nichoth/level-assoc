@@ -1,6 +1,5 @@
 var Transform = require('readable-stream/transform');
 var Readable = require('readable-stream/readable');
-var combine = require('stream-combiner');
 
 var bytewise = require('bytewise');
 var foreignKey = require('foreign-key');
@@ -440,7 +439,8 @@ Assoc.prototype.live = function (name, opts) {
     return this.list(name, opts);
 };
 
-Assoc.prototype.track = function () {
+Assoc.prototype.track = function (opts) {
+    if (!opts) opts = {};
     var self = this;
     if (!self._tracker) {
         self._tracker = tracker(self.sublevel);
@@ -465,7 +465,24 @@ Assoc.prototype.track = function () {
             next();
         });
     };
-    return combine(self._tracker({ objectMode: true }), decode);
+    
+    if (opts.meta !== false) {
+        var meta = { type: 'meta', value: self._hasKeys };
+        decode.push(JSON.stringify(meta) + '\n');
+    }
+    decode.on('readable', function () {
+        dup.push(decode.read());
+    });
+    
+    var track = self._tracker({ objectMode: true });
+    track.pipe(decode);
+    
+    var dup = new Transform({ objectMode: true });
+    dup._transform = function (row, enc, next) {
+        track.write(row);
+        next();
+    };
+    return dup;
 };
 
 Assoc.prototype._createLiveStream = function (opts) {

@@ -3,8 +3,8 @@ var combine = require('stream-combiner');
 var split = require('split');
 var matches = require('./lib/matches.js');
 
-module.exports = function (rowLookup) {
-    var streams = {};
+module.exports = function (streams) {
+    if (!streams) streams = {};
     var meta;
     return combine(split(), through(write));
     
@@ -40,7 +40,6 @@ module.exports = function (rowLookup) {
                     }
                 }
             }
-            if (!matched && rowLookup) rowLookup(row);
         }
     }
     
