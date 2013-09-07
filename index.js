@@ -449,25 +449,21 @@ Assoc.prototype.track = function () {
     var decode = new Transform({ objectMode: true });
     decode._transform = function (row, enc, next) {
         if (!row || !/^[A-Fa-f0-9]+$/.test(row.key)) {
-            return pass();
+            return next();
         }
         
         var parts = bytewise.decode(Buffer(row.key, 'hex'));
-        if (!Array.isArray(parts) || parts.length < 5) return pass();
-        var key = parts[4];
+        if (!Array.isArray(parts)) return next();
+        var key = parts.length === 2 ? parts[1] : parts[4];
+        if (!key) return next();
         
         self.db.get(key, function (err, value) {
-            if (err) return pass();
+            if (err) return next();
             
             var ref = { key: key, value: value };
             decode.push(JSON.stringify(ref) + '\n');
             next();
         });
-        
-        function pass () {
-            decode.push(JSON.stringify(row) + '\n');
-            return next();
-        }
     };
     return combine(self._tracker({ objectMode: true }), decode);
 };
