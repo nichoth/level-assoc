@@ -1,8 +1,10 @@
 var Transform = require('readable-stream/transform');
 var Readable = require('readable-stream/readable');
+var combine = require('stream-combiner');
 
 var bytewise = require('bytewise');
 var foreignKey = require('foreign-key');
+var tracker = require('level-track');
 
 var inherits = require('util').inherits;
 var EventEmitter = require('events').EventEmitter;
@@ -436,6 +438,38 @@ Assoc.prototype.live = function (name, opts) {
     opts.follow = true;
     if (opts.old === undefined) opts.old = false;
     return this.list(name, opts);
+};
+
+Assoc.prototype.track = function () {
+    var self = this;
+    if (!self._tracker) {
+        self._tracker = tracker(self.sublevel);
+    }
+    
+    var decode = new Transform({ objectMode: true });
+    decode._transform = function (row, enc, next) {
+        if (!row || !/^[A-Fa-f0-9]+$/.test(row.key)) {
+            return pass();
+        }
+        
+        var parts = bytewise.decode(Buffer(row.key, 'hex'));
+        if (!Array.isArray(parts) || parts.length < 5) return pass();
+        var key = parts[4];
+        
+        self.db.get(key, function (err, value) {
+            if (err) return pass();
+            
+            var ref = { key: key, value: value };
+            decode.push(JSON.stringify(ref) + '\n');
+            next();
+        });
+        
+        function pass () {
+            decode.push(JSON.stringify(row) + '\n');
+            return next();
+        }
+    };
+    return combine(self._tracker({ objectMode: true }), decode);
 };
 
 Assoc.prototype._createLiveStream = function (opts) {
