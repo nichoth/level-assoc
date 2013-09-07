@@ -256,6 +256,15 @@ records at the top-level
 live updates
 * `opts.meta` - include a row of metadata for `require('level-assoc/parse')`
 
+`rec` has these properties that you can use to make subsequent queries, which is
+particularly useful for tracking live updates. Augmented streams created from
+`hasMany` relations have the same properties:
+
+* `rec.startKey` - the starting key into the internal `assoc.sublevel`
+* `rec.endKey` - the ending key into the internal `assoc.sublevel`
+* `rec.startKeys` - the starting key array before encoding with bytewise
+* `rec.endKeys` - the ending key array before encoding with bytewise
+
 ## var rec = assoc.live(type, opts={}, cb)
 
 Return an object stream the same as `assoc.list()` with `opts.flat` and
