@@ -208,7 +208,7 @@ Assoc.prototype._augment = function (key, row, opts, cb) {
     var belongs = this._belongs[row.type];
     if (belongs && row[belongs]) {
         self.get(row[belongs], function (err, srow) {
-            
+            // TODO
         });
     }
 };
@@ -227,6 +227,11 @@ Assoc.prototype._rowStream = function (topType, topKey, key, params) {
     };
     
     var tr = new Transform({ objectMode: true });
+    tr.startKey = opts.start;
+    tr.startKeys = start;
+    tr.endKey = opts.end;
+    tr.endKeys = end;
+    
     tr._transform = function (row, enc, next) {
         var parts = bytewise.decode(Buffer(row.key, 'hex'));
         if (!parts) return next();
