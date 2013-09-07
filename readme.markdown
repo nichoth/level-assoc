@@ -294,7 +294,21 @@ TODO. Currently a no-op.
 
 Reconstruct a serialized list or live stream with `opts.flat` and `opts.meta`.
 
-This is useful for browser code.
+This is useful for reconstructing augmented data from an `assoc.track()` stream
+browser-side.
+
+## assoc.track(opts)
+
+Create a [level-track](http://github.com/substack/level-track) stream
+that takes a newline-separated track data from the sorted indexed keys you get
+from `.list()` as input and gives newline-separated primary-keyed objects as
+output.
+
+You can feed this stream directly into a `require('level-assoc/parse')()`
+instance.
+
+If `opts.meta` is `false`, don't include metadata but
+`require('level-assoc/parse')` expects the first line to include this metadata.
 
 # install
 
