@@ -297,6 +297,8 @@ Reconstruct a serialized list or live stream with `opts.flat` and `opts.meta`.
 This is useful for reconstructing augmented data from an `assoc.track()` stream
 browser-side.
 
+When the metadata arrives a `'meta'` event fires with the `meta` object.
+
 ## assoc.track(opts)
 
 Create a [level-track](http://github.com/substack/level-track) stream

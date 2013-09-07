@@ -6,7 +6,8 @@ var matches = require('./lib/matches.js');
 module.exports = function (streams) {
     if (!streams) streams = {};
     var meta;
-    return combine(split(), through(write));
+    var stream = combine(split(), through(write));
+    return stream;
     
     function write (buf) {
         var line = typeof buf === 'string' ? buf : buf.toString('utf8');
@@ -16,6 +17,7 @@ module.exports = function (streams) {
         
         if (row.type === 'meta' && row.key === undefined) {
             meta = row.value;
+            stream.emit('meta', meta);
         }
         else if (meta && row && row.value && meta[row.value.type]) {
             if (!streams[row.value.type]) streams[row.value.type] = {};
