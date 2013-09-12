@@ -24,15 +24,13 @@ function Assoc (db) {
     this._belongs = {};
     
     var self = this;
-    db.hooks.post({ start: '', end: '~' }, function (change) {
+    db.pre({ start: '', end: '~' }, function (change, add) {
         if (change.type === 'put') {
             var value = typeof change.value === 'string'
                 ? JSON.parse(change.value)
                 : change.value
             ;
-            self._postPut(change.key, value, function (err) {
-                if (err) self.db.emit('error', err)
-            });
+            self._postPut(change.key, value, add);
             self.emit('_put', change.key, value);
         }
         else if (change.type === 'del') {
@@ -59,17 +57,12 @@ Assoc.prototype.add = function (key) {
     }
 };
 
-Assoc.prototype._postPut = function (key, value, cb) {
-    if (!value) return cb();
+Assoc.prototype._postPut = function (key, value, add) {
+    if (!value) return;
     var self = this;
     
-    var pending = 1;
-    
     var k = bytewise.encode([ value.type, key ]).toString('hex');
-    this.sublevel.put(k, 0, function (err) {
-        if (err) cb(err)
-        else if (--pending === 0) cb()
-    });
+    add({ type: 'put', key: k, value: 0 }, self.sublevel);
     
     for (var i = 0, li = this._has.length; i < li; i++) {
         if (!matches(value, this._has[i][0])) continue;
@@ -79,17 +72,10 @@ Assoc.prototype._postPut = function (key, value, cb) {
             .concat(this._foreign[topKey].keyList(key, value))
         ;
         
-        pending ++;
-        
         var k = bytewise.encode(fkey).toString('hex');
-        this.sublevel.put(k, 0, function (err) {
-            if (err) cb(err)
-            else if (--pending === 0) cb()
-        });
+        add({ type: 'put', key: k, value: 0 }, self.sublevel);
         this.emit('_index', k, fkey);
     }
-    
-    if (pending === 0) cb();
 };
 
 Assoc.prototype.get = function (topKey, cb) {
