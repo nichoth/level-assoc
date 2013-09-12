@@ -1,6 +1,6 @@
 {
   "name": "level-assoc",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "description": "relational foreign key associations (hasMany, belongsTo) for leveldb",
   "main": "index.js",
   "dependencies": {
