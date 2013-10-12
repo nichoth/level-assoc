@@ -228,9 +228,9 @@ Fetch a `key` from the database with `cb(err, row)`.
 `row` contains the underlying `db.get()` result but augmented with functions to
 return streams for the has-many collections.
 
-For each augmented `relation` function, `row[relation](cb)` will return a stream
-with the list of the related rows. Optionally pass in `cb(err, rows)` to buffer
-the list of `rows`.
+For each augmented `relation` function, `row[relation](opts, cb)` will return a
+stream with the list of the related rows. Optionally pass in `cb(err, rows)` to
+buffer the list of `rows`.
 
 ## var rec = assoc.list(type, opts={}, cb)
 

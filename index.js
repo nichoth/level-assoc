@@ -181,8 +181,17 @@ Assoc.prototype._augment = function (key, row, opts, cb) {
     var many = this._hasKeys[row.type];
     if (many) Object.keys(many).forEach(function (k) {
         var type = many[k];
-        row[k] = function (cb) {
-            var s = self._rowStream(row.type, key, k, opts);
+        row[k] = function (opts_, cb) {
+            if (typeof opts_ === 'function') {
+                cb = opts_;
+                opts_ = {};
+            }
+            if (!opts_) opts_ = {};
+            Object.keys(opts).forEach(function (key) {
+                if (!opts_.hasOwnProperty(key)) opts_[key] = opts[key];
+            });
+            
+            var s = self._rowStream(row.type, key, k, opts_);
             if (cb) {
                 var results = [];
                 s.on('error', cb);
@@ -210,7 +219,8 @@ Assoc.prototype._rowStream = function (topType, topKey, key, params) {
     var opts = {
         start: bytewise.encode(start).toString('hex'),
         end: bytewise.encode(end).toString('hex'),
-        old: params.old
+        old: params.old,
+        limit: params.limit
     };
     
     var tr = new Transform({ objectMode: true });
