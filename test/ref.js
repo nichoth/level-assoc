@@ -80,7 +80,7 @@ var expectedTools = [
 
 test('refs', function (t) {
     t.plan(6);
-    
+
     assoc.get('sudoroom', function (err, room) {
         if (err) t.fail(err);
         t.deepEqual(
@@ -89,7 +89,7 @@ test('refs', function (t) {
         );
         t.equal(room.name, 'sudoroom');
         t.equal(room.type, 'hackerspace');
-        
+
         var hackers = [];
         room.hackers()
             .on('data', function (row) { hackers.push(row) })
@@ -105,7 +105,7 @@ test('refs', function (t) {
             })
         ;
     });
-    
+
     assoc.get('8d9a83', function (err, tool) {
         var usage = [];
         tool.usage()
